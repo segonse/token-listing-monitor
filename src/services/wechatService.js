@@ -71,15 +71,27 @@ class WechatService {
   }
 
   static formatTokenAnnouncementMessage(token, announcement) {
-    const type = announcement.type === "pre-market" ? "盘前交易" : "现货上市";
+    let typeDesc;
+
+    // 根据交易所和类型显示不同的类型描述
+    switch (announcement.type) {
+      case "pre-market":
+        typeDesc = "盘前交易";
+        break;
+      case "spot-listing":
+        typeDesc = "现货上市";
+        break;
+      default:
+        typeDesc = announcement.type;
+    }
 
     return (
       `🔔 发现代币上市信息！\n\n` +
       `📌 代币名称: ${token.name}\n` +
       `📌 交易所: ${announcement.exchange}\n` +
-      `📌 类型: ${type}\n` +
+      `📌 类型: ${typeDesc}\n` +
       `📌 标题: ${announcement.title}\n` +
-      `📌 发布时间: ${announcement.publishTime}\n` +
+      `📌 发布时间: ${announcement.publishTime.toLocaleString()}\n` +
       `📌 查看详情: ${announcement.url}`
     );
   }
