@@ -1,9 +1,19 @@
 const axios = require("axios");
+const tunnel = require("tunnel");
 
 class BinanceService {
   // 获取Binance新币上线公告
   static async getAnnouncements() {
     try {
+      // 创建代理隧道
+      const agent = tunnel.httpsOverHttp({
+        proxy: {
+          host: process.env.PROXY_HOST || "192.168.1.33",
+          port: parseInt(process.env.PROXY_PORT || "7890"),
+          proxyAuth: `${process.env.PROXY_USERNAME}:${process.env.PROXY_PASSWORD}`,
+        },
+      });
+
       const response = await axios.get(
         "https://www.binance.com/bapi/apex/v1/public/apex/cms/article/list/query",
         {
@@ -13,6 +23,8 @@ class BinanceService {
             pageSize: 50,
             catalogId: 48, // 新币上线分类
           },
+          // 添加代理配置
+          httpsAgent: agent,
         }
       );
 
