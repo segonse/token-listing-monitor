@@ -1,9 +1,18 @@
 const axios = require("axios");
+const tunnel = require("tunnel");
 
 class OkxService {
   // 获取OKX新币上线公告
   static async getAnnouncements() {
     try {
+      // 创建代理隧道
+      const agent = tunnel.httpsOverHttp({
+        proxy: {
+          host: process.env.PROXY_HOST || "192.168.1.33",
+          port: parseInt(process.env.PROXY_PORT || "7890"),
+          proxyAuth: `${process.env.PROXY_USERNAME}:${process.env.PROXY_PASSWORD}`,
+        },
+      });
       const response = await axios.get(
         "https://www.okx.com/api/v5/support/announcements",
         {
@@ -11,6 +20,9 @@ class OkxService {
             page: 1,
             annType: "announcements-new-listings",
           },
+          // 添加代理配置
+          httpsAgent: agent,
+          timeout: 30000,
         }
       );
 
@@ -24,9 +36,11 @@ class OkxService {
 
         return announcements.map((item) => {
           // 判断公告类型
-          let type = "spot-listing"; // 默认为现货上币
+          let type = "others"; // 默认为其他
           if (item.title.toLowerCase().includes("pre-market")) {
             type = "pre-market";
+          } else if (item.title.toLowerCase().includes("spot trading")) {
+            type = "spot-listing";
           }
 
           return {

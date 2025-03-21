@@ -25,6 +25,7 @@ class BinanceService {
           },
           // 添加代理配置
           httpsAgent: agent,
+          timeout: 30000,
         }
       );
 
@@ -39,7 +40,7 @@ class BinanceService {
 
         return articles.map((item) => {
           // 判断公告类型
-          let type = "spot-listing"; // 默认为现货上币
+          let type = "others"; // 默认为其他
 
           const title = item.title.toLowerCase();
 
