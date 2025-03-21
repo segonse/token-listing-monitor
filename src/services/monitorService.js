@@ -3,6 +3,8 @@ const Announcement = require("../models/Announcement");
 const BybitService = require("./bybitService");
 const OkxService = require("./okxService");
 const BinanceService = require("./binanceService");
+const BitgetService = require("./bitgetService");
+const KucoinService = require("./kucoinService");
 const WechatService = require("./wechatService");
 
 class MonitorService {
@@ -21,12 +23,16 @@ class MonitorService {
       const bybitAnnouncements = await BybitService.getAllAnnouncements();
       const okxAnnouncements = await OkxService.getAnnouncements();
       const binanceAnnouncements = await BinanceService.getAnnouncements();
+      const bitgetAnnouncements = await BitgetService.getAnnouncements();
+      const kucoinAnnouncements = await KucoinService.getAnnouncements();
 
       // 合并所有公告
       const allAnnouncements = [
         ...bybitAnnouncements,
         ...okxAnnouncements,
         ...binanceAnnouncements,
+        ...bitgetAnnouncements,
+        ...kucoinAnnouncements,
       ];
 
       if (!allAnnouncements.length) {
@@ -38,6 +44,8 @@ class MonitorService {
       console.log(`- Bybit: ${bybitAnnouncements.length} 条`);
       console.log(`- OKX: ${okxAnnouncements.length} 条`);
       console.log(`- Binance: ${binanceAnnouncements.length} 条`);
+      console.log(`- Bitget: ${bitgetAnnouncements.length} 条`);
+      console.log(`- KuCoin: ${kucoinAnnouncements.length} 条`);
 
       // 遍历公告，检查是否包含关注的代币
       for (const announcement of allAnnouncements) {
