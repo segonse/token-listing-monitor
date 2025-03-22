@@ -9,9 +9,13 @@ class OkxService {
       // 获取随机代理配置
       const proxyConfig = getDynamicProxyConfig();
 
-      // 创建代理隧道
+      // 创建代理隧道 - 正确的结构
       const agent = tunnel.httpsOverHttp({
-        proxy: proxyConfig,
+        proxy: {
+          host: proxyConfig.host,
+          port: proxyConfig.port,
+          proxyAuth: `${proxyConfig.auth.username}:${proxyConfig.auth.password}`,
+        },
       });
 
       const response = await axios.get(
