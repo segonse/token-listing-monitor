@@ -5,6 +5,7 @@ const OkxService = require("./okxService");
 const BinanceService = require("./binanceService");
 const BitgetService = require("./bitgetService");
 const KucoinService = require("./kucoinService");
+const HtxService = require("./htxService");
 const WechatService = require("./wechatService");
 
 class MonitorService {
@@ -25,6 +26,7 @@ class MonitorService {
       const binanceAnnouncements = await BinanceService.getAnnouncements();
       const bitgetAnnouncements = await BitgetService.getAnnouncements();
       const kucoinAnnouncements = await KucoinService.getAnnouncements();
+      const htxAnnouncements = await HtxService.getAnnouncements();
 
       // 合并所有公告
       const allAnnouncements = [
@@ -33,6 +35,7 @@ class MonitorService {
         ...binanceAnnouncements,
         ...bitgetAnnouncements,
         ...kucoinAnnouncements,
+        ...htxAnnouncements,
       ];
 
       if (!allAnnouncements.length) {
@@ -46,6 +49,7 @@ class MonitorService {
       console.log(`- Binance: ${binanceAnnouncements.length} 条`);
       console.log(`- Bitget: ${bitgetAnnouncements.length} 条`);
       console.log(`- KuCoin: ${kucoinAnnouncements.length} 条`);
+      console.log(`- HTX: ${htxAnnouncements.length} 条`);
 
       // 遍历公告，检查是否包含关注的代币
       for (const announcement of allAnnouncements) {

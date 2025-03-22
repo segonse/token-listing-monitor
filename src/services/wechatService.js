@@ -85,13 +85,25 @@ class WechatService {
         typeDesc = announcement.type;
     }
 
+    // 格式化为中国时区的时间字符串
+    const chinaTimeString = announcement.publishTime.toLocaleString("zh-CN", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+
     return (
       `🔔 发现代币上市信息！\n\n` +
       `📌 代币名称: ${token.name}\n` +
       `📌 交易所: ${announcement.exchange}\n` +
       `📌 类型: ${typeDesc}\n` +
       `📌 标题: ${announcement.title}\n` +
-      `📌 发布时间: ${announcement.publishTime.toLocaleString()}\n` +
+      `📌 发布时间: ${chinaTimeString}\n` +
       `📌 查看详情: ${announcement.url}`
     );
   }
