@@ -8,7 +8,8 @@ class KucoinService {
         "https://api.kucoin.com/api/v3/announcements",
         {
           params: {
-            pageSize: 20,
+            pageSize: 50,
+            lang: "en_US",
           },
           timeout: 30000,
         }

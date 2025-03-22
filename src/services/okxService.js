@@ -1,18 +1,19 @@
 const axios = require("axios");
 const tunnel = require("tunnel");
+const { getDynamicProxyConfig } = require("../utils/proxyHelper");
 
 class OkxService {
   // 获取OKX新币上线公告
   static async getAnnouncements() {
     try {
+      // 获取随机代理配置
+      const proxyConfig = getDynamicProxyConfig();
+
       // 创建代理隧道
       const agent = tunnel.httpsOverHttp({
-        proxy: {
-          host: process.env.PROXY_HOST || "192.168.1.33",
-          port: parseInt(process.env.PROXY_PORT || "7890"),
-          proxyAuth: `${process.env.PROXY_USERNAME}:${process.env.PROXY_PASSWORD}`,
-        },
+        proxy: proxyConfig,
       });
+
       const response = await axios.get(
         "https://www.okx.com/api/v5/support/announcements",
         {
