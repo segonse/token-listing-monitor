@@ -1,0 +1,23 @@
+{
+  "name": "node-tls-client",
+  "version": "1.0.0",
+  "description": "A Node.js library to bypass Cloudflare protection by customizing TLS fingerprints",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "keywords": [
+    "cloudflare",
+    "bypass",
+    "tls",
+    "ja3",
+    "fingerprint"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.7",
+    "https-proxy-agent": "^7.0.2",
+    "tls-client": "^0.2.1"
+  }
+}
