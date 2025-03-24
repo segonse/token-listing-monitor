@@ -6,6 +6,7 @@ const BinanceService = require("./binanceService");
 const BitgetService = require("./bitgetService");
 const KucoinService = require("./kucoinService");
 const HtxService = require("./htxService");
+const GateService = require("./gateService");
 const WechatService = require("./wechatService");
 
 class MonitorService {
@@ -21,12 +22,23 @@ class MonitorService {
       }
 
       // 获取各交易所公告
-      const bybitAnnouncements = await BybitService.getAllAnnouncements();
-      const okxAnnouncements = await OkxService.getAnnouncements();
-      const binanceAnnouncements = await BinanceService.getAnnouncements();
-      const bitgetAnnouncements = await BitgetService.getAnnouncements();
-      const kucoinAnnouncements = await KucoinService.getAnnouncements();
-      const htxAnnouncements = await HtxService.getAnnouncements();
+      const [
+        bybitAnnouncements,
+        okxAnnouncements,
+        binanceAnnouncements,
+        bitgetAnnouncements,
+        kucoinAnnouncements,
+        htxAnnouncements,
+        gateAnnouncements,
+      ] = await Promise.all([
+        BybitService.getAllAnnouncements(),
+        OkxService.getAnnouncements(),
+        BinanceService.getAnnouncements(),
+        BitgetService.getAnnouncements(),
+        KucoinService.getAnnouncements(),
+        HtxService.getAnnouncements(),
+        GateService.getAnnouncements(),
+      ]);
 
       // 合并所有公告
       const allAnnouncements = [
@@ -36,6 +48,7 @@ class MonitorService {
         ...bitgetAnnouncements,
         ...kucoinAnnouncements,
         ...htxAnnouncements,
+        ...gateAnnouncements,
       ];
 
       if (!allAnnouncements.length) {
@@ -50,6 +63,7 @@ class MonitorService {
       console.log(`- Bitget: ${bitgetAnnouncements.length} 条`);
       console.log(`- KuCoin: ${kucoinAnnouncements.length} 条`);
       console.log(`- HTX: ${htxAnnouncements.length} 条`);
+      console.log(`- Gate.io: ${gateAnnouncements.length} 条`);
 
       // 遍历公告，检查是否包含关注的代币
       for (const announcement of allAnnouncements) {
