@@ -34,57 +34,73 @@ class WechatService {
     }
   }
 
-  static async sendMessage(message, touser = "@all") {
+  static async sendMessage(message) {
     try {
-      const accessToken = await this.getAccessToken();
-      const agentid = process.env.WECHAT_AGENTID;
+      const token = await this.getAccessToken();
 
-      if (!agentid) {
-        throw new Error("企业微信AgentID缺失，请检查环境变量");
+      if (!token) {
+        console.error("获取微信token失败");
+        return false;
       }
 
       const response = await axios.post(
-        `https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=${accessToken}`,
+        `https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=${token}`,
         {
-          touser,
+          touser: "@all",
           msgtype: "text",
-          agentid,
+          agentid: process.env.WECHAT_AGENT_ID,
           text: {
             content: message,
           },
-          safe: 0,
         }
       );
 
-      if (response.data && response.data.errcode === 0) {
-        console.log("企业微信消息发送成功");
+      if (response.data.errcode === 0) {
         return true;
       } else {
-        throw new Error(
-          `企业微信消息发送失败: ${JSON.stringify(response.data)}`
-        );
+        console.error("发送微信消息失败:", response.data.errmsg);
+        return false;
       }
     } catch (error) {
-      console.error("企业微信消息发送失败:", error.message);
+      console.error("发送微信消息出错:", error.message);
       return false;
     }
   }
 
-  static formatTokenAnnouncementMessage(token, announcement) {
-    let typeDesc;
+  static async sendMessageToUser(userId, message) {
+    try {
+      const token = await this.getAccessToken();
 
-    // 根据交易所和类型显示不同的类型描述
-    switch (announcement.type) {
-      case "pre-market":
-        typeDesc = "盘前交易";
-        break;
-      case "spot-listing":
-        typeDesc = "现货上市";
-        break;
-      default:
-        typeDesc = announcement.type;
+      if (!token) {
+        console.error("获取微信token失败");
+        return false;
+      }
+
+      const response = await axios.post(
+        `https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=${token}`,
+        {
+          touser: userId,
+          msgtype: "text",
+          agentid: process.env.WECHAT_AGENT_ID,
+          text: {
+            content: message,
+          },
+        }
+      );
+
+      if (response.data.errcode === 0) {
+        return true;
+      } else {
+        console.error(`发送微信消息给 ${userId} 失败:`, response.data.errmsg);
+        return false;
+      }
+    } catch (error) {
+      console.error(`发送微信消息给 ${userId} 出错:`, error.message);
+      return false;
     }
+  }
 
+  static formatAnnouncementMessage(announcement) {
     // 格式化为中国时区的时间字符串
     const chinaTimeString = announcement.publishTime.toLocaleString("zh-CN", {
       timeZone: "Asia/Shanghai",
@@ -97,15 +113,28 @@ class WechatService {
       hour12: false,
     });
 
-    return (
-      `🔔 发现代币上市信息！\n\n` +
-      `📌 代币名称: ${token.name}\n` +
-      `📌 交易所: ${announcement.exchange}\n` +
-      `📌 类型: ${typeDesc}\n` +
-      `📌 标题: ${announcement.title}\n` +
-      `📌 发布时间: ${chinaTimeString}\n` +
-      `📌 查看详情: ${announcement.url}`
-    );
+    let message = `🔔 发现新公告！\n\n`;
+    message += `📌 交易所: ${announcement.exchange}\n`;
+    message += `📌 类型: ${announcement.type}\n`;
+    message += `📌 标题: ${announcement.title}\n`;
+
+    if (announcement.tokenName) {
+      message += `📌 代币: ${announcement.tokenName}\n`;
+    }
+
+    if (announcement.projectName) {
+      message += `📌 项目: ${announcement.projectName}\n`;
+    }
+
+    message += `📌 发布时间: ${chinaTimeString}\n`;
+    message += `📌 查看详情: ${announcement.url}`;
+
+    return message;
+  }
+
+  // 保留原来的方法以兼容
+  static formatTokenAnnouncementMessage(token, announcement) {
+    return this.formatAnnouncementMessage(announcement);
   }
 }
 

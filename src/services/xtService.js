@@ -86,7 +86,7 @@ class XtService {
           publishTime: new Date(), // 由于页面上没有显示具体时间，使用当前时间
         });
       });
-      console.log(announcements);
+      //   console.log(announcements);
 
       console.log(`获取到 ${announcements.length} 条 XT 交易所公告`);
       return announcements;
