@@ -140,6 +140,7 @@ class BinanceService {
       title.includes("Copy Trading") ||
       title.includes("Trading Pair") ||
       title.includes("Will Open Trading for") ||
+      title.includes("Auto-Invest Adds") ||
       // 跳过Options相关公告
       title.includes("Options RFQ") ||
       // 跳过Margin相关公告
@@ -163,6 +164,10 @@ class BinanceService {
         ""
       )
       .replace(/Introducing\s+/gi, "")
+      // 移除"Subscription for"和类似前缀
+      .replace(/Subscription\s+for\s+(the\s+)?/gi, "")
+      .replace(/Token\s+Sale\s+on/gi, "on")
+      .replace(/Is\s+Now\s+Open/gi, "")
       // 移除项目名称中的各种前缀
       .replace(/\b(Add|Added|List)\s+/gi, "")
       .replace(/\d{4}-\d{2}-\d{2}/g, "") // 移除日期格式 YYYY-MM-DD
@@ -345,8 +350,10 @@ class BinanceService {
       if (token.projectName) {
         // 移除项目名中的各种前缀词
         token.projectName = token.projectName
-          .replace(/^(and|by|with|the|Add|Added|List)\s+/i, "")
+          .replace(/^(and|by|with|the|Add|Added|List|Subscription for)\s+/i, "")
           .replace(/\s+(and|by|with|the)\s+/i, " ")
+          .replace(/\s+Token\s+Sale\s+on.*$/i, "") // 移除"Token Sale on"及其后面的内容
+          .replace(/\s+Is\s+Now\s+Open.*$/i, "") // 移除"Is Now Open"及其后面的内容
           .trim();
 
         // 如果项目名只有一两个字符，可能不是有效的项目名
