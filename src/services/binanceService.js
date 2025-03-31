@@ -138,8 +138,15 @@ class BinanceService {
       title.includes("Notice on Trading") ||
       title.includes("Trading Bots Services") ||
       title.includes("Copy Trading") ||
+      title.includes("Trading Pairs") ||
       // 跳过Options相关公告
-      title.includes("Options RFQ")
+      title.includes("Options RFQ") ||
+      // 跳过Margin相关公告
+      title.includes("Cross Margin") ||
+      title.includes("Isolated Margin") ||
+      (title.includes("Margin") &&
+        !title.includes("on Earn") &&
+        !title.includes("Convert"))
     ) {
       return [];
     }
@@ -151,152 +158,184 @@ class BinanceService {
     let processedTitle = title
       // 移除公告通用前缀
       .replace(
-        /Binance (Will|Has|Adds|Announced|Will Continue to|Will End the|Will List)\s+/gi,
+        /Binance (Will|Has|Adds|Added|Announced|Will Continue to|Will End the|Will List)\s+/gi,
         ""
       )
       .replace(/Introducing\s+/gi, "")
-      // 移除项目名称中的Add前缀
-      .replace(/\bAdd\s+/gi, "")
+      // 移除项目名称中的各种前缀
+      .replace(/\b(Add|Added|List)\s+/gi, "")
       .replace(/\d{4}-\d{2}-\d{2}/g, "") // 移除日期格式 YYYY-MM-DD
       .replace(/\(\d{4}-\d{2}-\d{2}\)/g, "") // 移除括号中的日期
       .replace(/\b\d{4}\b/g, "") // 仅移除独立的四位数年份，不影响代币名称
       .replace(/\s+/g, " ") // 合并多个空格
       .trim();
 
-    // 模式1：标准格式 "Project Name (TOKEN)"，可能有多个
-    // 修改正则表达式，确保能匹配数字字母组合的代币名
-    const regex = /([A-Za-z0-9'\s&]+?)\s*\(([A-Za-z0-9]+)\)/g;
-    let match;
+    // 处理从Launchpool或HODLer Airdrops公告中提取代币信息
+    if (title.includes("Launchpool") || title.includes("HODLer Airdrops")) {
+      // 正则表达式匹配形如 "Introducing Xai (XAI) on Binance Launchpool" 的模式
+      const specialRegex =
+        /(?:Introducing|Binance Will Add|Binance Adds)\s+([A-Za-z0-9'\s\.\-&]+?)\s*\(([A-Za-z0-9]+)\)/i;
+      const specialMatch = title.match(specialRegex);
 
-    // 使用处理后的标题进行匹配
-    while ((match = regex.exec(processedTitle)) !== null) {
-      const projectName = match[1].trim();
-      const tokenSymbol = match[2].trim();
+      if (specialMatch) {
+        const projectName = specialMatch[1].trim();
+        const tokenSymbol = specialMatch[2].trim();
 
-      // 检查代币是否是已知的合约后缀或基础货币
-      if (
-        tokenSymbol.endsWith("USDT") ||
-        ["USD", "USDC", "BTC", "ETH", "BNB", "FDUSD", "BUSD", "JPY"].includes(
-          tokenSymbol
-        )
-      ) {
-        continue;
-      }
-
-      // 过滤掉一些不应该被当作项目名的词汇
-      if (
-        !projectName.match(
-          /^(Binance|Will|on|in|to|and|by|Market|with|Add)$/i
-        ) &&
-        tokenSymbol.length > 0
-      ) {
-        // 检查是否有重复添加
-        if (!tokens.some((t) => t.tokenName === tokenSymbol)) {
+        // 确保不是基础货币
+        if (
+          !["USD", "USDC", "BTC", "ETH", "BNB", "FDUSD"].includes(
+            tokenSymbol
+          ) &&
+          !tokenSymbol.endsWith("USDT")
+        ) {
           tokens.push({
             tokenName: tokenSymbol,
             projectName: projectName,
           });
+          // 提取到代币信息后直接进入后处理阶段
+          // 不再尝试其他模式，确保不会提取到错误的代币如TUSD
         }
       }
-    }
 
-    // 模式2：查找带数字前缀的代币名，例如"1000CHEEMS"
-    const alternateRegex = /([A-Za-z0-9'\s&]+?)\s*\((\d+[A-Za-z0-9]+)\)/g;
-    while ((match = alternateRegex.exec(title)) !== null) {
-      const projectName = match[1]
-        .trim()
-        .replace(/^(Binance Will Add|Binance Will List|Add)\s+/gi, "");
-      const tokenSymbol = match[2].trim();
+      // 如果通过特殊模式未找到代币信息，则继续使用其他模式
+      if (tokens.length === 0) {
+        // 通用的括号提取模式
+        const regex = /([A-Za-z0-9'\s\.\-&]+?)\s*\(([A-Za-z0-9]+)\)/i;
+        const match = processedTitle.match(regex);
+        if (match) {
+          const projectName = match[1].trim();
+          const tokenSymbol = match[2].trim();
 
-      // 避免添加重复代币
-      if (
-        !tokens.some((t) => t.tokenName === tokenSymbol) &&
-        tokenSymbol.length > 0
-      ) {
-        tokens.push({
-          tokenName: tokenSymbol,
-          projectName: projectName,
-        });
-      }
-    }
-
-    // 模式3：处理特殊情况 "代币1 and 代币2"
-    if (processedTitle.includes(" and ")) {
-      const parts = processedTitle.split(" and ");
-
-      // 检查每个部分是否包含代币信息
-      parts.forEach((part) => {
-        part = part.trim();
-
-        // 如果该部分不包含括号 (已经被模式1处理)，尝试提取代币信息
-        if (!part.includes("(") && part.length > 0) {
-          // 查找全大写的词作为可能的代币名，也支持数字前缀
-          const symbolMatch = part.match(/\b(\d*[A-Z][A-Z0-9]{1,9})\b/);
-          if (symbolMatch) {
-            const tokenSymbol = symbolMatch[1];
-
-            // 排除已知的非代币标识符
-            if (
-              !tokenSymbol.endsWith("USDT") &&
-              ![
-                "USD",
-                "USDC",
-                "BTC",
-                "ETH",
-                "BNB",
-                "FDUSD",
-                "RFQ",
-                "AND",
-                "THE",
-              ].includes(tokenSymbol)
-            ) {
-              // 移除代币名后的其余部分可能是项目名
-              let projectName = part
-                .replace(new RegExp("\\b" + tokenSymbol + "\\b", "g"), "")
-                .trim();
-
-              // 删除可能存在的标点符号和前缀词
-              projectName = projectName
-                .replace(/^[,.\s]+|[,.\s]+$/g, "")
-                .replace(/^Add\s+/i, "");
-
-              // 避免添加重复代币
-              if (
-                !tokens.some((t) => t.tokenName === tokenSymbol) &&
-                tokenSymbol.length > 0
-              ) {
-                tokens.push({
-                  tokenName: tokenSymbol,
-                  projectName: projectName.length > 0 ? projectName : null,
-                });
-              }
-            }
+          // 确保不是基础货币
+          if (
+            !["USD", "USDC", "BTC", "ETH", "BNB", "FDUSD"].includes(
+              tokenSymbol
+            ) &&
+            !tokenSymbol.endsWith("USDT")
+          ) {
+            tokens.push({
+              tokenName: tokenSymbol,
+              projectName: projectName,
+            });
           }
         }
-      });
-    }
+      }
+    } else {
+      // 模式1：标准格式 "Project Name (TOKEN)"，可能有多个
+      // 修改正则表达式，确保能匹配包含特殊字符的项目名
+      const regex = /([A-Za-z0-9'\s\.\-&]+?)\s*\(([A-Za-z0-9]+)\)/g;
+      let match;
 
-    // 模式4：专门处理 Launchpool 和 HODLer Airdrops 公告
-    if (
-      tokens.length === 0 &&
-      (title.includes("Launchpool") || title.includes("HODLer Airdrops"))
-    ) {
-      // 使用处理后的标题进行匹配，但也支持数字前缀的代币
-      const specialRegex = /([A-Za-z0-9'\s&]+?)\s*\((\d*[A-Za-z0-9]+)\)/i;
-      const specialMatch = processedTitle.match(specialRegex);
+      // 使用处理后的标题进行匹配
+      while ((match = regex.exec(processedTitle)) !== null) {
+        const projectName = match[1].trim();
+        const tokenSymbol = match[2].trim();
 
-      if (specialMatch) {
-        const projectName = specialMatch[1].trim().replace(/^Add\s+/i, "");
-        const tokenSymbol = specialMatch[2].trim();
-
+        // 检查代币是否是已知的合约后缀或基础货币
         if (
-          !["USD", "USDC", "BTC", "ETH", "BNB", "FDUSD"].includes(tokenSymbol)
+          tokenSymbol.endsWith("USDT") ||
+          ["USD", "USDC", "BTC", "ETH", "BNB", "FDUSD", "BUSD", "JPY"].includes(
+            tokenSymbol
+          )
+        ) {
+          continue;
+        }
+
+        // 过滤掉一些不应该被当作项目名的词汇
+        if (
+          !projectName.match(
+            /^(Binance|Will|on|in|to|and|by|Market|with|Add|Added|List)$/i
+          ) &&
+          tokenSymbol.length > 0
+        ) {
+          // 检查是否有重复添加
+          if (!tokens.some((t) => t.tokenName === tokenSymbol)) {
+            tokens.push({
+              tokenName: tokenSymbol,
+              projectName: projectName,
+            });
+          }
+        }
+      }
+
+      // 模式2：查找带数字前缀的代币名，例如"1000CHEEMS"
+      const alternateRegex = /([A-Za-z0-9'\s\.\-&]+?)\s*\((\d+[A-Za-z0-9]+)\)/g;
+      while ((match = alternateRegex.exec(title)) !== null) {
+        const projectName = match[1]
+          .trim()
+          .replace(
+            /^(Binance Will Add|Binance Will List|Binance Adds|Add|Added|List)\s+/gi,
+            ""
+          );
+        const tokenSymbol = match[2].trim();
+
+        // 避免添加重复代币
+        if (
+          !tokens.some((t) => t.tokenName === tokenSymbol) &&
+          tokenSymbol.length > 0
         ) {
           tokens.push({
             tokenName: tokenSymbol,
             projectName: projectName,
           });
         }
+      }
+
+      // 模式3：处理特殊情况 "代币1 and 代币2"
+      if (processedTitle.includes(" and ")) {
+        const parts = processedTitle.split(" and ");
+
+        // 检查每个部分是否包含代币信息
+        parts.forEach((part) => {
+          part = part.trim();
+
+          // 如果该部分不包含括号 (已经被模式1处理)，尝试提取代币信息
+          if (!part.includes("(") && part.length > 0) {
+            // 查找全大写的词作为可能的代币名，也支持数字前缀
+            const symbolMatch = part.match(/\b(\d*[A-Z][A-Z0-9]{1,9})\b/);
+            if (symbolMatch) {
+              const tokenSymbol = symbolMatch[1];
+
+              // 排除已知的非代币标识符
+              if (
+                !tokenSymbol.endsWith("USDT") &&
+                ![
+                  "USD",
+                  "USDC",
+                  "BTC",
+                  "ETH",
+                  "BNB",
+                  "FDUSD",
+                  "RFQ",
+                  "AND",
+                  "THE",
+                  "TUSD",
+                ].includes(tokenSymbol)
+              ) {
+                // 移除代币名后的其余部分可能是项目名
+                let projectName = part
+                  .replace(new RegExp("\\b" + tokenSymbol + "\\b", "g"), "")
+                  .trim();
+
+                // 删除可能存在的标点符号和前缀词
+                projectName = projectName
+                  .replace(/^[,.\s]+|[,.\s]+$/g, "")
+                  .replace(/^(Add|Added|List)\s+/i, "");
+
+                // 避免添加重复代币
+                if (
+                  !tokens.some((t) => t.tokenName === tokenSymbol) &&
+                  tokenSymbol.length > 0
+                ) {
+                  tokens.push({
+                    tokenName: tokenSymbol,
+                    projectName: projectName.length > 0 ? projectName : null,
+                  });
+                }
+              }
+            }
+          }
+        });
       }
     }
 
@@ -305,7 +344,7 @@ class BinanceService {
       if (token.projectName) {
         // 移除项目名中的各种前缀词
         token.projectName = token.projectName
-          .replace(/^(and|by|with|the|Add)\s+/i, "")
+          .replace(/^(and|by|with|the|Add|Added|List)\s+/i, "")
           .replace(/\s+(and|by|with|the)\s+/i, " ")
           .trim();
 
