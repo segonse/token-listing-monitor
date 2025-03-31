@@ -138,7 +138,8 @@ class BinanceService {
       title.includes("Notice on Trading") ||
       title.includes("Trading Bots Services") ||
       title.includes("Copy Trading") ||
-      title.includes("Trading Pairs") ||
+      title.includes("Trading Pair") ||
+      title.includes("Will Open Trading for") ||
       // 跳过Options相关公告
       title.includes("Options RFQ") ||
       // 跳过Margin相关公告
