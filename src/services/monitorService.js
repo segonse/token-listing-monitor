@@ -195,17 +195,27 @@ class MonitorService {
 
       // 保存历史数据到数据库，但不发送通知
       let savedCount = 0;
-      for (const announcement of allAnnouncements) {
-        // 修改去重逻辑：同时检查URL和类型
-        const existingAnnouncement = await Announcement.findOne({
-          where: {
-            url: announcement.url,
-            type: announcement.type,
-          },
-        });
 
-        if (!existingAnnouncement) {
+      // 使用Map记录已存储的URL+类型组合
+      const storedCombinations = new Map();
+
+      // 先查询数据库中已有的公告
+      const existingAnnouncements = await Announcement.findAll();
+
+      // 将已有公告的URL+类型组合加入到Map中
+      for (const existing of existingAnnouncements) {
+        const key = `${existing.url}|${existing.type}`;
+        storedCombinations.set(key, true);
+      }
+
+      // 处理新公告
+      for (const announcement of allAnnouncements) {
+        const key = `${announcement.url}|${announcement.type}`;
+
+        // 检查URL+类型组合是否已存在
+        if (!storedCombinations.has(key)) {
           await Announcement.create(announcement);
+          storedCombinations.set(key, true);
           savedCount++;
         }
       }
