@@ -196,9 +196,13 @@ class MonitorService {
       // 保存历史数据到数据库，但不发送通知
       let savedCount = 0;
       for (const announcement of allAnnouncements) {
-        const existingAnnouncement = await Announcement.findByURL(
-          announcement.url
-        );
+        // 修改去重逻辑：同时检查URL和类型
+        const existingAnnouncement = await Announcement.findOne({
+          where: {
+            url: announcement.url,
+            type: announcement.type,
+          },
+        });
 
         if (!existingAnnouncement) {
           await Announcement.create(announcement);
