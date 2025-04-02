@@ -48,15 +48,27 @@ class BinanceService {
           // 判断公告类型
           let type = "未分类"; // 默认为未分类
 
-          // 处理特殊情况：先检查是否是结束盘前并上新币的公告
-          if (
+          // 1. 优先判断创新区公告
+          if (lowerTitle.includes("innovation zone")) {
+            type = "创新";
+          }
+          // 2. 判断 HODLer Airdrops 公告
+          else if (lowerTitle.includes("hodler airdrops")) {
+            type = "HODLer";
+          }
+          // 3. 判断 Megadrop 公告
+          else if (lowerTitle.includes("megadrop")) {
+            type = "Megadrop";
+          }
+          // 4. 处理特殊情况：先检查是否是结束盘前并上新币的公告
+          else if (
             lowerTitle.includes("end the") &&
             lowerTitle.includes("pre-market") &&
             lowerTitle.includes("list")
           ) {
             type = "上新";
           }
-          // 处理同时包含盘前和launchpool/launchpad的情况
+          // 5. 处理同时包含盘前和launchpool/launchpad的情况
           else if (
             lowerTitle.includes("pre-market") &&
             (lowerTitle.includes("launchpool") ||
@@ -69,34 +81,34 @@ class BinanceService {
               type = "盘前+launchpad";
             }
           }
-          // 检查是否是普通上币公告
+          // 6. 检查是否是普通上币公告，同时判断是否包含 Futures
           else if (
-            lowerTitle.includes("list") &&
+            (lowerTitle.includes("list") || lowerTitle.includes("add")) &&
             !lowerTitle.includes("pre-market")
           ) {
-            type = "上新";
+            if (lowerTitle.includes("futures")) {
+              type = "上新+合约";
+            } else {
+              type = "上新";
+            }
           }
-          // 检查是否是盘前公告
+          // 7. 检查是否是盘前公告
           else if (lowerTitle.includes("pre-market")) {
             type = "盘前";
           }
-          // 区分launchpool和launchpad
+          // 8. 区分launchpool和launchpad
           else if (lowerTitle.includes("launchpool")) {
             type = "launchpool";
           } else if (lowerTitle.includes("launchpad")) {
             type = "launchpad";
           }
-          // 检查是否是合约公告
+          // 9. 检查是否是合约公告
           else if (
             (lowerTitle.includes("future") || lowerTitle.includes("futures")) &&
             (lowerTitle.includes("contract") ||
               lowerTitle.includes("contracts"))
           ) {
             type = "合约";
-          }
-          // 检查是否是创新区公告
-          else if (lowerTitle.includes("innovation zone")) {
-            type = "创新";
           }
 
           // 提取代币信息，现在返回数组
