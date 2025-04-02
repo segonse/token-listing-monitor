@@ -48,7 +48,7 @@ class WechatService {
         {
           touser: "@all",
           msgtype: "text",
-          agentid: process.env.WECHAT_AGENT_ID,
+          agentid: process.env.WECHAT_AGENTID,
           text: {
             content: message,
           },
@@ -81,7 +81,7 @@ class WechatService {
         {
           touser: userId,
           msgtype: "text",
-          agentid: process.env.WECHAT_AGENT_ID,
+          agentid: process.env.WECHAT_AGENTID,
           text: {
             content: message,
           },
