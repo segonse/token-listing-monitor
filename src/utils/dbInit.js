@@ -13,10 +13,11 @@ const initDatabase = async () => {
           title TEXT NOT NULL,
           description TEXT,
           type VARCHAR(50) NOT NULL,
-          url VARCHAR(255) NOT NULL UNIQUE,
+          url VARCHAR(255) NOT NULL,
           publishTime TIMESTAMP NOT NULL,
           created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY unique_announcement (url, type)
         )
       `);
 
