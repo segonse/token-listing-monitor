@@ -169,22 +169,24 @@ class MonitorService {
     try {
       console.log("开始获取历史公告数据...");
 
-      const maxPages = 1; // 获取10页数据（每页50条，约500条历史数据）
+      const startPage = 12; // 起始页码
+      const endPage = 1; // 结束页码
       let allAnnouncements = [];
 
-      for (let page = 1; page <= maxPages; page++) {
+      // 从高页码向低页码获取
+      for (let page = startPage; page >= endPage; page--) {
         console.log(`获取币安历史数据 - 第 ${page} 页...`);
         const announcements = await BinanceService.getAnnouncements(page);
 
         if (!announcements || announcements.length === 0) {
-          console.log(`第 ${page} 页没有数据，结束获取`);
-          break;
+          console.log(`第 ${page} 页没有数据，继续获取下一页`);
+          continue;
         }
 
         allAnnouncements = [...allAnnouncements, ...announcements];
 
         // 避免请求过于频繁
-        if (page < maxPages) {
+        if (page > endPage) {
           await new Promise((resolve) => setTimeout(resolve, 3000));
         }
       }

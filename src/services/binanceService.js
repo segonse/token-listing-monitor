@@ -40,93 +40,110 @@ class BinanceService {
         response.data.data.catalogs.length > 0
       ) {
         const articles = response.data.data.catalogs[0].articles || [];
+        let processedAnnouncements = [];
 
-        return articles.map((item) => {
+        for (const item of articles) {
           const title = item.title;
           const lowerTitle = title.toLowerCase();
 
-          // 判断公告类型
-          let type = "未分类"; // 默认为未分类
+          // 提取代币信息，对所有类型都相同
+          const tokenInfoArray = this.extractTokenInfo(title);
 
-          // 1. 优先判断创新区公告
+          // 创建基本公告对象，类型字段后续填充
+          const baseAnnouncement = {
+            exchange: "Binance",
+            title: item.title,
+            description: "", // Binance API中没有返回描述
+            url: `https://www.binance.com/zh-CN/support/announcement/${item.code}`,
+            publishTime: new Date(parseInt(item.releaseDate)),
+            code: item.code,
+            tokenInfoArray: tokenInfoArray,
+          };
+
+          // 识别类型列表
+          const types = [];
+
+          // 特殊情况1：如果是创新区公告，优先处理
           if (lowerTitle.includes("innovation zone")) {
-            type = "创新";
+            types.push("创新");
           }
-          // 2. 判断 HODLer Airdrops 公告
+
+          // 特殊情况2：如果是HODLer Airdrops公告
           else if (lowerTitle.includes("hodler airdrops")) {
-            type = "HODLer";
+            types.push("HODLer");
           }
-          // 3. 判断 Megadrop 公告
+
+          // 特殊情况3：如果是Megadrop公告
           else if (lowerTitle.includes("megadrop")) {
-            type = "Megadrop";
+            types.push("Megadrop");
           }
-          // 4. 处理特殊情况：先检查是否是结束盘前并上新币的公告
+
+          // 特殊情况4：结束盘前并上新币的公告
           else if (
             lowerTitle.includes("end the") &&
             lowerTitle.includes("pre-market") &&
             lowerTitle.includes("list")
           ) {
-            type = "上新";
+            // 这种情况只添加"上新"类型
+            types.push("上新");
           }
-          // 5. 处理同时包含盘前和launchpool/launchpad的情况
-          else if (
-            lowerTitle.includes("pre-market") &&
-            (lowerTitle.includes("launchpool") ||
-              lowerTitle.includes("launchpad"))
-          ) {
-            // 区分launchpool和launchpad
+
+          // 常规类型判断
+          else {
+            // 判断是否包含盘前
+            if (lowerTitle.includes("pre-market")) {
+              types.push("盘前");
+            }
+
+            // 判断是否包含launchpool
             if (lowerTitle.includes("launchpool")) {
-              type = "盘前+launchpool";
-            } else {
-              type = "盘前+launchpad";
+              types.push("launchpool");
             }
-          }
-          // 6. 检查是否是普通上币公告，同时判断是否包含 Futures
-          else if (
-            (lowerTitle.includes("list") || lowerTitle.includes("add")) &&
-            !lowerTitle.includes("pre-market")
-          ) {
+
+            // 判断是否包含launchpad
+            if (lowerTitle.includes("launchpad")) {
+              types.push("launchpad");
+            }
+
+            // 判断是否是上新公告
+            if (
+              (lowerTitle.includes("list") || lowerTitle.includes("add")) &&
+              !lowerTitle.includes("trading pair") &&
+              !lowerTitle.includes("trading pairs")
+            ) {
+              types.push("上新");
+            }
+
+            // 判断是否涉及futures
             if (lowerTitle.includes("futures")) {
-              type = "上新+合约";
-            } else {
-              type = "上新";
+              types.push("合约");
+            }
+
+            // 判断合约相关
+            if (
+              (lowerTitle.includes("future") ||
+                lowerTitle.includes("futures")) &&
+              (lowerTitle.includes("contract") ||
+                lowerTitle.includes("contracts")) &&
+              !types.includes("合约")
+            ) {
+              types.push("合约");
             }
           }
-          // 7. 检查是否是盘前公告
-          else if (lowerTitle.includes("pre-market")) {
-            type = "盘前";
-          }
-          // 8. 区分launchpool和launchpad
-          else if (lowerTitle.includes("launchpool")) {
-            type = "launchpool";
-          } else if (lowerTitle.includes("launchpad")) {
-            type = "launchpad";
-          }
-          // 9. 检查是否是合约公告
-          else if (
-            (lowerTitle.includes("future") || lowerTitle.includes("futures")) &&
-            (lowerTitle.includes("contract") ||
-              lowerTitle.includes("contracts"))
-          ) {
-            type = "合约";
+
+          // 如果没有识别出任何类型，设为未分类
+          if (types.length === 0) {
+            types.push("未分类");
           }
 
-          // 提取代币信息，现在返回数组
-          const tokenInfoArray = this.extractTokenInfo(title);
+          // 为每个类型创建一条公告
+          for (const type of types) {
+            const announcementWithType = { ...baseAnnouncement, type: type };
+            processedAnnouncements.push(announcementWithType);
+          }
+        }
 
-          // 构建公告对象，不再包含单个代币信息
-          return {
-            exchange: "Binance",
-            title: item.title,
-            description: "", // Binance API中没有返回描述
-            type: type,
-            url: `https://www.binance.com/zh-CN/support/announcement/${item.code}`,
-            publishTime: new Date(parseInt(item.releaseDate)),
-            code: item.code,
-            // 保留完整的代币信息数组，供后续处理
-            tokenInfoArray: tokenInfoArray,
-          };
-        });
+        return processedAnnouncements;
       }
 
       return [];
