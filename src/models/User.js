@@ -48,6 +48,9 @@ class User {
 
       if (!subscriptions.length) return false;
 
+      // 如果公告类型为未分类，则不匹配（暂时）
+      if (announcement.type === "未分类") return false;
+
       // 查找与该公告关联的所有代币
       const [associatedTokens] = await db.query(
         `SELECT * FROM tokens WHERE announcement_id = ?`,
