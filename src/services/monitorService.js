@@ -71,12 +71,23 @@ class MonitorService {
       // console.log(`- Gate.io: ${gateAnnouncements.length} 条`);
       // console.log(`- XT: ${xtAnnouncements.length} 条`);
 
+      // 获取数据库中已有的所有公告，用于去重
+      const existingAnnouncements = await Announcement.findAll();
+
+      // 使用Map记录已存在的URL+type组合
+      const existingCombinations = new Map();
+      for (const existing of existingAnnouncements) {
+        const key = `${existing.url}|${existing.type}`;
+        existingCombinations.set(key, existing);
+      }
+
       // 处理每条公告
       for (const announcement of allAnnouncements) {
+        // 构建当前公告的URL+type键
+        const key = `${announcement.url}|${announcement.type}`;
+
         // 检查公告是否已存在
-        const existingAnnouncement = await Announcement.findByURL(
-          announcement.url
-        );
+        const existingAnnouncement = existingCombinations.get(key);
 
         // 如果公告已存在，跳过
         if (existingAnnouncement) {
@@ -112,6 +123,9 @@ class MonitorService {
           console.error(`保存公告失败: ${announcement.title}`);
           continue;
         }
+
+        // 添加到已存在Map中，防止重复处理
+        existingCombinations.set(key, savedAnnouncement);
 
         // 处理用户订阅和通知
         for (const user of users) {

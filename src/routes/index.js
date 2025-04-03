@@ -10,9 +10,10 @@ router.delete("/tokens/:id", TokenController.deleteToken);
 
 // 公告相关路由
 router.get("/announcements", AnnouncementController.getAllAnnouncements);
-router.get(
-  "/announcements/token/:tokenId",
-  AnnouncementController.getAnnouncementsByTokenId
+// 新增: 根据筛选条件获取历史公告
+router.post(
+  "/announcements/filter",
+  AnnouncementController.getFilteredAnnouncements
 );
 
 module.exports = router;
