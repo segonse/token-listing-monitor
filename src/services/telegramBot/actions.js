@@ -121,10 +121,21 @@ function setupActions(bot) {
 
   // 执行查询
   bot.bot.action(/execute_query_(.+)_(.+)_(\d+)/, async (ctx) => {
-    const exchange = ctx.match[1];
-    const type = ctx.match[2];
-    const limit = parseInt(ctx.match[3]);
+    const fullMatch = ctx.match[0];
+    // 直接从存储的用户选择中获取交易所和类型
     const chatId = ctx.chat.id.toString();
+    let exchange, type;
+
+    if (bot.userSelections && bot.userSelections[chatId]) {
+      exchange = bot.userSelections[chatId].exchange;
+      type = bot.userSelections[chatId].type;
+    } else {
+      // 如果没有存储，则从回调数据中解析（兼容旧逻辑）
+      exchange = ctx.match[1];
+      type = ctx.match[2];
+    }
+
+    const limit = parseInt(ctx.match[3]);
 
     await ctx.answerCbQuery();
     await ctx.reply("正在查询，请稍候...");
@@ -150,6 +161,7 @@ function setupActions(bot) {
 
       // 调用API获取公告
       const Announcement = require("../../models/Announcement");
+      console.log(exchangeParam, typeParam, tokenName, projectName, limit);
       const announcements = await Announcement.getFilteredAnnouncements({
         exchanges: exchangeParam,
         types: typeParam,
