@@ -1,4 +1,5 @@
 const { Markup } = require("telegraf");
+const db = require("../../config/database");
 const menus = require("./menus");
 const queries = require("./queries");
 const formatters = require("./formatters");
@@ -17,10 +18,9 @@ function setupActions(bot) {
 
     try {
       // 获取用户ID
-      const [users] = await bot.bot.telegram.db.query(
-        "SELECT id FROM users WHERE user_id = ?",
-        [userId]
-      );
+      const [users] = await db.query("SELECT id FROM users WHERE user_id = ?", [
+        userId,
+      ]);
 
       if (users.length === 0) {
         return ctx.reply("用户不存在，请重新发送 /start 命令");
