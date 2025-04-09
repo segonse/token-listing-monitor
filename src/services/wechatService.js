@@ -118,13 +118,13 @@ class WechatService {
     message += `📌 类型: ${announcement.type}\n`;
     message += `📌 标题: ${announcement.title}\n`;
 
-    if (announcement.tokenName) {
-      message += `📌 代币: ${announcement.tokenName}\n`;
-    }
+    // if (announcement.tokenName) {
+    //   message += `📌 代币: ${announcement.tokenName}\n`;
+    // }
 
-    if (announcement.projectName) {
-      message += `📌 项目: ${announcement.projectName}\n`;
-    }
+    // if (announcement.projectName) {
+    //   message += `📌 项目: ${announcement.projectName}\n`;
+    // }
 
     message += `📌 发布时间: ${chinaTimeString}\n`;
     message += `📌 查看详情: ${announcement.url}`;

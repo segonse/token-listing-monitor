@@ -1,0 +1,590 @@
+const { Telegraf, Markup } = require("telegraf");
+require("dotenv").config();
+const db = require("../../config/database");
+
+class TelegramBot {
+  constructor() {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+    if (!botToken) {
+      console.error("错误: 未设置TELEGRAM_BOT_TOKEN环境变量");
+      return;
+    }
+
+    this.bot = new Telegraf(botToken);
+    this.setupCommands();
+    this.setupActions();
+  }
+
+  setupCommands() {
+    // 处理/start命令
+    this.bot.command("start", async (ctx) => {
+      const telegramChatId = ctx.chat.id.toString();
+      const telegramUsername = ctx.from.username || "";
+
+      // 记录用户信息，但暂不创建订阅
+      try {
+        // 检查用户是否已存在
+        const [existingUsers] = await db.query(
+          "SELECT * FROM users WHERE user_id = ?",
+          [`tg_${telegramChatId}`]
+        );
+
+        if (existingUsers.length === 0) {
+          // 创建新用户
+          await db.query(
+            "INSERT INTO users (user_id, telegram_id, telegram_username) VALUES (?, ?, ?)",
+            [`tg_${telegramChatId}`, telegramChatId, telegramUsername]
+          );
+
+          console.log(`新Telegram用户已创建: tg_${telegramChatId}`);
+        } else {
+          // 更新现有用户的Telegram信息
+          await db.query(
+            "UPDATE users SET telegram_id = ?, telegram_username = ? WHERE user_id = ?",
+            [telegramChatId, telegramUsername, `tg_${telegramChatId}`]
+          );
+
+          console.log(`已更新Telegram用户: tg_${telegramChatId}`);
+        }
+      } catch (error) {
+        console.error("创建/更新Telegram用户失败:", error);
+      }
+
+      return ctx.reply(
+        "欢迎使用代币监控机器人！请选择以下功能：",
+        this.getMainMenu()
+      );
+    });
+
+    // 处理/help命令
+    this.bot.command("help", (ctx) => {
+      return ctx.reply(
+        "可用命令:\n" +
+          "/start - 显示主菜单\n" +
+          "/help - 显示帮助信息\n" +
+          "/status - 查看系统状态\n" +
+          "/exchanges - 查看支持的交易所\n" +
+          "您也可以点击菜单按钮使用更多功能"
+      );
+    });
+
+    // 处理/status命令
+    this.bot.command("status", async (ctx) => {
+      try {
+        // 获取用户信息
+        const telegramChatId = ctx.chat.id.toString();
+        const userId = `tg_${telegramChatId}`;
+
+        const [users] = await db.query(
+          "SELECT * FROM users WHERE user_id = ?",
+          [userId]
+        );
+
+        if (users.length === 0) {
+          return ctx.reply("您尚未注册，请发送 /start 开始使用");
+        }
+
+        const userInfo = users[0];
+
+        // 获取订阅信息
+        const [subscriptions] = await db.query(
+          `SELECT * FROM user_subscriptions WHERE user_id = ?`,
+          [userInfo.id]
+        );
+
+        // 获取系统统计数据
+        const [announcementCount] = await db.query(
+          "SELECT COUNT(*) as count FROM announcements"
+        );
+
+        let statusMessage = "<b>📊 系统状态</b>\n\n";
+        statusMessage += `<b>用户ID:</b> ${userId}\n`;
+        statusMessage += `<b>已注册:</b> ${new Date(
+          userInfo.created_at
+        ).toLocaleString("zh-CN")}\n`;
+        statusMessage += `<b>订阅数量:</b> ${subscriptions.length}\n`;
+        statusMessage += `<b>系统公告总数:</b> ${announcementCount[0].count}\n`;
+
+        return ctx.reply(statusMessage, { parse_mode: "HTML" });
+      } catch (error) {
+        console.error("获取状态失败:", error);
+        return ctx.reply("获取状态信息失败");
+      }
+    });
+
+    // 处理/exchanges命令
+    this.bot.command("exchanges", async (ctx) => {
+      try {
+        const exchanges = await this.getExchangesList();
+        let message = "支持的交易所列表:\n";
+
+        exchanges.forEach((exchange) => {
+          message += `- ${exchange}\n`;
+        });
+
+        return ctx.reply(
+          message,
+          Markup.inlineKeyboard([
+            [Markup.button.callback("查询公告", "check_history_announcements")],
+          ])
+        );
+      } catch (error) {
+        console.error("获取交易所列表失败:", error);
+        return ctx.reply("获取交易所列表失败，请稍后再试");
+      }
+    });
+  }
+
+  setupActions() {
+    // 订阅公告推送
+    this.bot.action("subscribe_announcements", async (ctx) => {
+      const telegramChatId = ctx.chat.id.toString();
+      const userId = `tg_${telegramChatId}`;
+
+      try {
+        // 获取用户ID
+        const [users] = await db.query(
+          "SELECT id FROM users WHERE user_id = ?",
+          [userId]
+        );
+
+        if (users.length === 0) {
+          return ctx.reply("用户不存在，请重新发送 /start 命令");
+        }
+
+        const userDbId = users[0].id;
+
+        // 创建默认订阅（所有交易所，所有类型）
+        await db.query(
+          `INSERT IGNORE INTO user_subscriptions 
+           (user_id, exchange, token_name, project_name, announcement_type)
+           VALUES (?, 'all', 'all', 'all', 'all')`,
+          [userDbId]
+        );
+
+        await ctx.answerCbQuery("订阅成功！");
+        return ctx.reply(
+          "您已成功订阅所有交易所的所有类型（除未分类）的公告推送！每当有新公告发布时，您将收到通知。"
+        );
+      } catch (error) {
+        console.error("创建订阅失败:", error);
+        await ctx.answerCbQuery("订阅失败");
+        return ctx.reply("订阅失败，请稍后再试");
+      }
+    });
+
+    // 查询历史公告
+    this.bot.action("check_history_announcements", async (ctx) => {
+      try {
+        await ctx.answerCbQuery();
+
+        // 动态获取交易所列表
+        const exchanges = await this.getExchangesList();
+
+        // 构建动态键盘
+        const buttons = [];
+        const maxPerRow = 2; // 每行两个按钮
+
+        for (let i = 0; i < exchanges.length; i += maxPerRow) {
+          const row = [];
+          for (let j = 0; j < maxPerRow && i + j < exchanges.length; j++) {
+            const exchange = exchanges[i + j];
+            row.push(
+              Markup.button.callback(
+                exchange,
+                `check_${exchange.toLowerCase()}`
+              )
+            );
+          }
+          buttons.push(row);
+        }
+
+        // 添加最后一行
+        buttons.push([
+          Markup.button.callback("查看所有交易所", "check_all_exchanges"),
+          Markup.button.callback("返回", "back_to_main"),
+        ]);
+
+        return ctx.reply(
+          "请选择要查询的交易所:",
+          Markup.inlineKeyboard(buttons)
+        );
+      } catch (error) {
+        console.error("生成交易所菜单失败:", error);
+        return ctx.reply("生成菜单失败，请稍后再试");
+      }
+    });
+
+    // 添加交易所选择的处理
+    this.bot.action(/check_(.+)/, async (ctx) => {
+      const exchange = ctx.match[1];
+      let exchangeName = "所有交易所";
+
+      if (exchange !== "all_exchanges") {
+        exchangeName = exchange.charAt(0).toUpperCase() + exchange.slice(1);
+      }
+
+      await ctx.answerCbQuery();
+
+      try {
+        // 动态获取公告类型
+        const types = await this.getAnnouncementTypes();
+
+        // 构建动态键盘
+        const buttons = [];
+        const maxPerRow = 2; // 每行两个按钮
+
+        for (let i = 0; i < types.length; i += maxPerRow) {
+          const row = [];
+          for (let j = 0; j < maxPerRow && i + j < types.length; j++) {
+            const type = types[i + j];
+            row.push(Markup.button.callback(type, `type_${exchange}_${type}`));
+          }
+          buttons.push(row);
+        }
+
+        // 添加最后一行
+        buttons.push([
+          Markup.button.callback("所有类型", `type_${exchange}_all`),
+          Markup.button.callback("返回", "check_history_announcements"),
+        ]);
+
+        return ctx.reply(
+          `请选择${exchangeName}的公告类型:`,
+          Markup.inlineKeyboard(buttons)
+        );
+      } catch (error) {
+        console.error("生成公告类型菜单失败:", error);
+        return ctx.reply("生成菜单失败，请稍后再试");
+      }
+    });
+
+    // 添加公告类型选择的处理
+    this.bot.action(/type_(.+)_(.+)/, async (ctx) => {
+      const exchange = ctx.match[1];
+      const type = ctx.match[2];
+
+      // 存储用户选择，用于后续查询
+      const chatId = ctx.chat.id.toString();
+      if (!this.userSelections) this.userSelections = {};
+      this.userSelections[chatId] = {
+        exchange,
+        type,
+      };
+
+      await ctx.answerCbQuery();
+
+      // 询问是否需要按代币名称筛选
+      return ctx.reply(
+        "您是否需要按代币名称筛选?",
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "是，输入代币名称",
+              `filter_token_${exchange}_${type}`
+            ),
+          ],
+          [
+            Markup.button.callback(
+              "否，继续查询",
+              `select_limit_${exchange}_${type}`
+            ),
+          ],
+        ])
+      );
+    });
+
+    // 处理代币名称筛选选择
+    this.bot.action(/filter_token_(.+)_(.+)/, (ctx) => {
+      const exchange = ctx.match[1];
+      const type = ctx.match[2];
+      const chatId = ctx.chat.id.toString();
+
+      // 更新用户状态
+      if (!this.userStates) this.userStates = {};
+      this.userStates[chatId] = `waiting_token_${exchange}_${type}`;
+
+      ctx.answerCbQuery();
+      return ctx.reply("请输入要筛选的代币名称或项目名称:");
+    });
+
+    // 处理输入的代币名称
+    this.bot.on("text", async (ctx) => {
+      const chatId = ctx.chat.id.toString();
+      const text = ctx.message.text;
+
+      // 检查是否在等待输入代币名称
+      if (
+        this.userStates &&
+        this.userStates[chatId] &&
+        this.userStates[chatId].startsWith("waiting_token_")
+      ) {
+        const params = this.userStates[chatId].split("_");
+        const exchange = params[2];
+        const type = params[3];
+
+        // 保存用户输入的代币/项目名称
+        if (!this.userSelections) this.userSelections = {};
+        if (!this.userSelections[chatId]) this.userSelections[chatId] = {};
+
+        this.userSelections[chatId].tokenOrProject = text;
+
+        // 清除状态
+        delete this.userStates[chatId];
+
+        // 继续询问结果数量
+        return ctx.reply(
+          `您要查看多少条结果?`,
+          Markup.inlineKeyboard([
+            [
+              Markup.button.callback(
+                "1条",
+                `execute_query_${exchange}_${type}_1`
+              ),
+              Markup.button.callback(
+                "5条",
+                `execute_query_${exchange}_${type}_5`
+              ),
+            ],
+            [
+              Markup.button.callback(
+                "10条",
+                `execute_query_${exchange}_${type}_10`
+              ),
+              Markup.button.callback(
+                "20条",
+                `execute_query_${exchange}_${type}_20`
+              ),
+            ],
+          ])
+        );
+      }
+
+      // 其他文本消息处理...
+    });
+
+    // 处理直接选择结果数量（不筛选代币）
+    this.bot.action(/select_limit_(.+)_(.+)/, (ctx) => {
+      const exchange = ctx.match[1];
+      const type = ctx.match[2];
+
+      ctx.answerCbQuery();
+      return ctx.reply(
+        `您要查看多少条结果?`,
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "1条",
+              `execute_query_${exchange}_${type}_1`
+            ),
+            Markup.button.callback(
+              "5条",
+              `execute_query_${exchange}_${type}_5`
+            ),
+          ],
+          [
+            Markup.button.callback(
+              "10条",
+              `execute_query_${exchange}_${type}_10`
+            ),
+            Markup.button.callback(
+              "20条",
+              `execute_query_${exchange}_${type}_20`
+            ),
+          ],
+        ])
+      );
+    });
+
+    // 执行查询
+    this.bot.action(/execute_query_(.+)_(.+)_(\d+)/, async (ctx) => {
+      const exchange = ctx.match[1];
+      const type = ctx.match[2];
+      const limit = parseInt(ctx.match[3]);
+      const chatId = ctx.chat.id.toString();
+
+      await ctx.answerCbQuery();
+      await ctx.reply("正在查询，请稍候...");
+
+      try {
+        // 准备查询参数
+        const exchangeParam = exchange === "all_exchanges" ? "all" : [exchange];
+        const typeParam = type === "all" ? "all" : [type];
+
+        let tokenName = null;
+        let projectName = null;
+
+        // 检查是否有代币/项目筛选
+        if (
+          this.userSelections &&
+          this.userSelections[chatId] &&
+          this.userSelections[chatId].tokenOrProject
+        ) {
+          // 这里简单处理，同时作为代币名和项目名尝试查询
+          tokenName = this.userSelections[chatId].tokenOrProject;
+          projectName = this.userSelections[chatId].tokenOrProject;
+        }
+
+        // 调用API获取公告
+        const Announcement = require("../../models/Announcement");
+        const announcements = await Announcement.getFilteredAnnouncements({
+          exchanges: exchangeParam,
+          types: typeParam,
+          tokenName,
+          projectName,
+          limit,
+        });
+
+        // 清除用户选择
+        if (this.userSelections && this.userSelections[chatId]) {
+          delete this.userSelections[chatId];
+        }
+
+        // 处理查询结果
+        if (announcements.length > 0) {
+          for (const announcement of announcements) {
+            // 将每个公告作为单独的消息发送，避免消息过长
+            const message = this.formatAnnouncementMessage(announcement);
+            await ctx.reply(message, {
+              parse_mode: "HTML",
+              disable_web_page_preview: false,
+            });
+
+            // 避免发送过快触发Telegram限流
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          }
+
+          await ctx.reply(
+            "以上是查询到的最新公告，如需查看更多，请点击下方按钮：",
+            Markup.inlineKeyboard([
+              [
+                Markup.button.callback(
+                  "返回交易所选择",
+                  "check_history_announcements"
+                ),
+              ],
+              [Markup.button.callback("返回主菜单", "back_to_main")],
+            ])
+          );
+        } else {
+          await ctx.reply(
+            "未查询到符合条件的公告",
+            Markup.inlineKeyboard([
+              [
+                Markup.button.callback(
+                  "返回交易所选择",
+                  "check_history_announcements"
+                ),
+              ],
+              [Markup.button.callback("返回主菜单", "back_to_main")],
+            ])
+          );
+        }
+      } catch (error) {
+        console.error("查询公告失败:", error);
+        await ctx.reply(
+          "查询公告失败，请稍后再试",
+          Markup.inlineKeyboard([
+            [Markup.button.callback("返回", "check_history_announcements")],
+          ])
+        );
+      }
+    });
+  }
+
+  getMainMenu() {
+    return Markup.inlineKeyboard([
+      [Markup.button.callback("📢 订阅公告推送", "subscribe_announcements")],
+      [
+        Markup.button.callback(
+          "🔍 查询历史公告",
+          "check_history_announcements"
+        ),
+      ],
+      // 其他功能按钮...
+    ]);
+  }
+
+  // 启动机器人
+  launch() {
+    if (!this.bot) {
+      console.error("无法启动Telegram Bot: 配置不完整");
+      return false;
+    }
+
+    try {
+      this.bot.launch();
+      console.log("Telegram Bot 已启动");
+
+      // 优雅地处理停止信号
+      process.once("SIGINT", () => this.bot.stop("SIGINT"));
+      process.once("SIGTERM", () => this.bot.stop("SIGTERM"));
+
+      return true;
+    } catch (error) {
+      console.error("启动Telegram Bot失败:", error);
+      return false;
+    }
+  }
+
+  // 添加格式化公告消息的方法
+  formatAnnouncementMessage(announcement) {
+    const chinaTimeString = announcement.publishTime.toLocaleString("zh-CN", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+
+    let message = `<b>🔔 ${announcement.exchange}公告</b>\n\n`;
+    message += `<b>📌 类型:</b> ${announcement.type}\n`;
+    message += `<b>📌 标题:</b> ${announcement.title}\n`;
+    message += `<b>📌 发布时间:</b> ${chinaTimeString}\n\n`;
+
+    if (announcement.tokenInfoArray && announcement.tokenInfoArray.length > 0) {
+      message += "<b>📌 代币信息:</b>\n";
+      announcement.tokenInfoArray.forEach((token) => {
+        if (token.tokenName) message += `   - 代币: ${token.tokenName}\n`;
+        if (token.projectName) message += `   - 项目: ${token.projectName}\n`;
+      });
+      message += "\n";
+    }
+
+    message += `<a href="${announcement.url}">查看详情</a>`;
+
+    return message;
+  }
+
+  // 在TelegramBot类中添加获取交易所列表的方法
+  async getExchangesList() {
+    try {
+      const [exchanges] = await db.query(
+        "SELECT DISTINCT exchange FROM announcements ORDER BY exchange"
+      );
+      return exchanges.map((e) => e.exchange);
+    } catch (error) {
+      console.error("获取交易所列表失败:", error);
+      return ["Binance"]; // 默认值，避免完全失败
+    }
+  }
+
+  // 获取公告类型列表的方法
+  async getAnnouncementTypes() {
+    try {
+      const [types] = await db.query(
+        "SELECT DISTINCT type FROM announcements WHERE type != '未分类' ORDER BY type"
+      );
+      return types.map((t) => t.type);
+    } catch (error) {
+      console.error("获取公告类型列表失败:", error);
+      return ["上新", "盘前", "创新"]; // 默认值
+    }
+  }
+}
+
+module.exports = new TelegramBot();

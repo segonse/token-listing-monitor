@@ -41,7 +41,9 @@ const initDatabase = async () => {
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id VARCHAR(100) NOT NULL UNIQUE,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        telegram_id VARCHAR(100) NULL,
+        telegram_username VARCHAR(100) NULL
       )
     `);
 

@@ -10,6 +10,7 @@ const HtxService = require("./htxService");
 const GateService = require("./gateService");
 const XtService = require("./xtService");
 const WechatService = require("./wechatService");
+const TelegramService = require("./telegramService");
 
 class MonitorService {
   static async checkNewAnnouncements() {
@@ -147,23 +148,45 @@ class MonitorService {
                 `向用户 ${user.user_id} 发送公告通知: ${announcement.title}`
               );
 
-              // 发送微信通知
-              const message =
-                WechatService.formatAnnouncementMessage(announcement);
-              const messageSent = await WechatService.sendMessageToUser(
-                user.user_id,
-                message
-              );
-
-              if (messageSent) {
-                // 标记为已发送
-                await Announcement.markAsSentToUser(
-                  user.id,
-                  savedAnnouncement.id
+              // 根据用户ID类型决定发送渠道
+              if (user.user_id.startsWith("tg_") && user.telegram_id) {
+                // Telegram用户，发送Telegram消息
+                const telegramMessage =
+                  TelegramService.formatAnnouncementMessage(announcement);
+                const messageSent = await TelegramService.sendMessageToUser(
+                  user.telegram_id,
+                  telegramMessage
                 );
-                console.log(`成功向用户 ${user.user_id} 发送通知`);
+
+                if (messageSent) {
+                  // 标记为已发送
+                  await Announcement.markAsSentToUser(
+                    user.id,
+                    savedAnnouncement.id
+                  );
+                  console.log(`成功向Telegram用户 ${user.user_id} 发送通知`);
+                } else {
+                  console.error(`向Telegram用户 ${user.user_id} 发送通知失败`);
+                }
               } else {
-                console.error(`向用户 ${user.user_id} 发送通知失败`);
+                // 默认为微信用户
+                const wechatMessage =
+                  WechatService.formatAnnouncementMessage(announcement);
+                const messageSent = await WechatService.sendMessageToUser(
+                  user.user_id,
+                  wechatMessage
+                );
+
+                if (messageSent) {
+                  // 标记为已发送
+                  await Announcement.markAsSentToUser(
+                    user.id,
+                    savedAnnouncement.id
+                  );
+                  console.log(`成功向微信用户 ${user.user_id} 发送通知`);
+                } else {
+                  console.error(`向微信用户 ${user.user_id} 发送通知失败`);
+                }
               }
             } else {
               console.log(`通知已经发送给用户 ${user.user_id}，跳过`);

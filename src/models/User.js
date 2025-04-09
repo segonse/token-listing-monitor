@@ -4,14 +4,14 @@ class User {
   static async findAll() {
     try {
       const [users] = await db.query(`
-        SELECT u.id, u.user_id, 
+        SELECT u.id, u.user_id, u.telegram_id, u.telegram_username,
           GROUP_CONCAT(DISTINCT us.exchange) as exchanges,
           GROUP_CONCAT(DISTINCT us.token_name) as tokens,
           GROUP_CONCAT(DISTINCT us.project_name) as projects,
           GROUP_CONCAT(DISTINCT us.announcement_type) as types
         FROM users u
         LEFT JOIN user_subscriptions us ON u.id = us.user_id
-        GROUP BY u.id, u.user_id
+        GROUP BY u.id, u.user_id, u.telegram_id, u.telegram_username
       `);
       return users;
     } catch (error) {

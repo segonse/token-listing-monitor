@@ -4,7 +4,7 @@ const { initDatabase } = require("./utils/dbInit");
 const { scheduleMonitor } = require("./utils/scheduler");
 const routes = require("./routes");
 const MonitorService = require("./services/monitorService");
-const Announcement = require("./models/Announcement");
+const telegramBot = require("./services/telegramBot/index");
 require("dotenv").config();
 
 const app = express();
@@ -63,10 +63,14 @@ const startServer = async () => {
     // 启动定时任务
     scheduleMonitor();
 
+    // 启动Telegram Bot
+    telegramBot.launch();
+
     // 启动服务器
     app.listen(PORT, () => {
       console.log(`服务器已启动，监听端口: ${PORT}`);
       console.log(`API可通过 http://localhost:${PORT}/api 访问`);
+      console.log(`Telegram Bot 已启动`);
     });
 
     // 首次启动时检查是否需要获取历史数据
