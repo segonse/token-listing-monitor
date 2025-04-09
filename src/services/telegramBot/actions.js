@@ -161,7 +161,7 @@ function setupActions(bot) {
 
       // 调用API获取公告
       const Announcement = require("../../models/Announcement");
-      console.log(exchangeParam, typeParam, tokenName, projectName, limit);
+      // console.log(exchangeParam, typeParam, tokenName, projectName, limit);
       const announcements = await Announcement.getFilteredAnnouncements({
         exchanges: exchangeParam,
         types: typeParam,
