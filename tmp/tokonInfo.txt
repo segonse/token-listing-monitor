@@ -1,53 +1,50 @@
-SLN	list Smart Layer Network	1219
-ZETA	list ZetaChain	1228
-DMAIL	list Dmail	1231
-ICE	list Ice	1233
-ZEUS	list Zeus Network	1241
-VENOM	list Venom	1245
-GPT	list QnA3.AI	1256
-ZERO	list ZeroLend	1261
-RUNECOIN	RUNE	1262
-MSN	list Meson Network	1264
-SAFE		1265
-MERL	list Merlin Chain	1268
-PRCL	list Parcl	1270
-MEW		1272
-BLOCK	list BlockGames	1276
-FOXY	list Foxy	1277
-ATH	list Aethir	1285
-ULTI	list Ultiverse	1287
-MAX	OKX Announcement on Listing Matr1x	1308
-L3	OKX suspends the listing of Layer3	1311
-DEGEN		1317
-SLERF		1317
-UXLINK	list UXLINK	1319
-XR	list Xraders	1321
-EURC		1331
-Catizen	list CATI	1333
-PYUSD	list PayPal USD	1370
-Major	list pre-market futures for MAJOR	1381
-SWELL	the listing of Swell	1384
-MemeFi	list MEMEFI	1389
-Scroll	list SCR	1392
-CAT	list Simons Cat	1398
-MONKY	support the Wise Monkey	1403
-APE	airdrop for ApeCoin	1403
-Morpho	the listing of MORPHO	1415
-Hyperliquid	list pre-market futures for HYPE	1444
-Movement	list MOVE	1446
-Nodecoin	completed distributing NC	1448
-Jambo	open J	1450
-DUCK	completed distributing DuckChain	1452
-DuckChain	list DUCK	1456
-Berachain	list BERA	1475
-Animecoin	list ANIME	1481
-J	completed distributing Jambo	1482
-Babylon	list BABY	1491
-Wayfinder	list PROMPT	1495
-WalletConnect	list WCT	1496
-Fluid	list FLUID	1500
-Ultiverse	Introducing ULTI	1513
-Notcoin	Introducing NOT	1514
-RUNE	RUNECOIN	1515
-QnA3.AI	GPT	1518
-ZetaChain	Introducing ZETA	1519
+ZEUS	list Zeus Network	1526
+VENOM	list Venom	1530
+GPT	list QnA3.AI	1541
+ZERO	list ZeroLend	1546
+RUNECOIN	RUNE	1547
+MSN	list Meson Network	1549
+SAFE		1550
+MERL	list Merlin Chain	1553
+PRCL	list Parcl	1555
+MEW		1557
+BLOCK	list BlockGames	1561
+FOXY	list Foxy	1562
+ATH	list Aethir	1570
+ULTI	list Ultiverse	1572
+MAX	OKX Announcement on Listing Matr1x	1593
+L3	the listing of Layer3	1596
+DEGEN		1602
+SLERF		1602
+UXLINK	list UXLINK	1604
+XR	list Xraders	1606
+EURC		1616
+Catizen	list CATI	1618
+PYUSD	list PayPal USD	1655
+Major	list pre-market futures for MAJOR	1666
+SWELL	the listing of Swell	1669
+MemeFi	list MEMEFI	1674
+Scroll	list SCR	1677
+CAT	list Simons Cat	1683
+MONKY	support the Wise Monkey	1688
+APE	airdrop for ApeCoin	1688
+Morpho	the listing of MORPHO	1700
+Hyperliquid	list pre-market futures for HYPE	1729
+Movement	list MOVE	1731
+Nodecoin	completed distributing NC	1733
+Jambo	open J	1735
+DUCK	completed distributing DuckChain	1737
+DuckChain	list DUCK	1741
+Berachain	list BERA	1760
+Animecoin	list ANIME	1766
+J	completed distributing Jambo	1767
+Babylon	list BABY	1776
+Wayfinder	list PROMPT	1780
+WalletConnect	list WCT	1781
+Fluid	list FLUID	1785
+Ultiverse	Introducing ULTI	1798
+Notcoin	Introducing NOT	1799
+RUNE	RUNECOIN	1800
+QnA3.AI	GPT	1803
+ZetaChain	Introducing ZETA	1804
+Dmail	Introducing DMAIL	1805

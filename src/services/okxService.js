@@ -164,6 +164,12 @@ class OkxService {
     const lowerTitle = title.toLowerCase();
     const types = [];
 
+    // Jumpstart特殊处理
+    if (title.includes("on OKX Jumpstart")) {
+      types.push("jumpstart");
+      return types; // Jumpstart是独立分类，直接返回
+    }
+
     // 判断是否是盘前交易
     if (lowerTitle.includes("pre-market")) {
       types.push("盘前");
@@ -177,7 +183,8 @@ class OkxService {
           lowerTitle.includes("spot trading pair"))) ||
       // 新增支持交易对的公告
       (lowerTitle.includes("support") &&
-        lowerTitle.includes("spot trading pair")) ||
+        (lowerTitle.includes("spot trading pair") ||
+          lowerTitle.includes("trading pairs"))) ||
       // 将要上线的交易对公告
       (lowerTitle.includes("will launch") &&
         lowerTitle.includes("/") &&
@@ -241,7 +248,7 @@ class OkxService {
     let match;
 
     while ((match = regex.exec(processedTitle)) !== null) {
-      const projectName = match[1].trim();
+      const rawProjectName = match[1].trim();
       const tokenSymbol = match[2].trim();
 
       // 过滤掉基础货币和已知的非代币符号
@@ -249,6 +256,9 @@ class OkxService {
         !tokenSymbol.endsWith("USDT") &&
         !["USD", "USDC", "BTC", "ETH", "BNB", "BUSD"].includes(tokenSymbol)
       ) {
+        // 清理项目名称，移除常见前缀
+        let projectName = this.cleanProjectName(rawProjectName);
+
         // 避免添加重复代币
         if (!tokens.some((t) => t.tokenName === tokenSymbol)) {
           tokens.push({
@@ -262,8 +272,11 @@ class OkxService {
     // 模式2：处理带数字前缀的代币
     const alternateRegex = /([A-Za-z0-9'\s\.\-&]+?)\s*\((\d+[A-Za-z0-9]+)\)/g;
     while ((match = alternateRegex.exec(processedTitle)) !== null) {
-      const projectName = match[1].trim();
+      const rawProjectName = match[1].trim();
       const tokenSymbol = match[2].trim();
+
+      // 清理项目名称
+      let projectName = this.cleanProjectName(rawProjectName);
 
       // 避免添加重复代币
       if (!tokens.some((t) => t.tokenName === tokenSymbol)) {
@@ -274,7 +287,7 @@ class OkxService {
       }
     }
 
-    // 模式3：处理多代币列表，如 "OKX to list ARKM, PIXEL, BOME for spot trading"
+    // 模式3：处理多代币列表
     if (
       processedTitle.includes("list") &&
       processedTitle.includes("for spot trading")
@@ -292,16 +305,10 @@ class OkxService {
             // 确保不是已经提取的
             if (!tokens.some((t) => t.tokenName === item)) {
               // 尝试从标题中提取项目名称
-              let projectName = null;
-
-              // 查找形如 "X (X empire)" 的项目名称
-              const projectMatch = new RegExp(
-                `${item}\\s*\\(([^)]+)\\)`,
-                "i"
-              ).exec(processedTitle);
-              if (projectMatch) {
-                projectName = projectMatch[1].trim();
-              }
+              let projectName = this.findProjectNameForToken(
+                item,
+                processedTitle
+              );
 
               tokens.push({
                 tokenName: item,
@@ -335,18 +342,10 @@ class OkxService {
       if (baseIsBaseCurrency && !quoteIsBaseCurrency) {
         if (!tokens.some((t) => t.tokenName === quoteToken)) {
           // 尝试从标题中找到项目名
-          let projectName = null;
-          if (
-            processedTitle.includes(`${quoteToken} (`) ||
-            processedTitle.includes(`(${quoteToken})`)
-          ) {
-            const projectMatch = processedTitle.match(
-              new RegExp(`([A-Za-z0-9\\s\\-&\\.]+)\\s*\\(${quoteToken}\\)`, "i")
-            );
-            if (projectMatch) {
-              projectName = projectMatch[1].trim();
-            }
-          }
+          let projectName = this.findProjectNameForToken(
+            quoteToken,
+            processedTitle
+          );
 
           tokens.push({
             tokenName: quoteToken,
@@ -358,18 +357,10 @@ class OkxService {
       else if (!baseIsBaseCurrency && quoteIsBaseCurrency) {
         if (!tokens.some((t) => t.tokenName === baseToken)) {
           // 尝试从标题中找到项目名
-          let projectName = null;
-          if (
-            processedTitle.includes(`${baseToken} (`) ||
-            processedTitle.includes(`(${baseToken})`)
-          ) {
-            const projectMatch = processedTitle.match(
-              new RegExp(`([A-Za-z0-9\\s\\-&\\.]+)\\s*\\(${baseToken}\\)`, "i")
-            );
-            if (projectMatch) {
-              projectName = projectMatch[1].trim();
-            }
-          }
+          let projectName = this.findProjectNameForToken(
+            baseToken,
+            processedTitle
+          );
 
           tokens.push({
             tokenName: baseToken,
@@ -386,10 +377,13 @@ class OkxService {
       const jumpstartMatch = title.match(jumpstartRegex);
 
       if (jumpstartMatch) {
-        const projectName = jumpstartMatch[1].trim();
+        const rawProjectName = jumpstartMatch[1].trim();
         let tokenSymbol = jumpstartMatch[2].trim();
 
-        // 对于特殊情况如 RSIC•GENESIS•RUNE，处理规则：
+        // 清理项目名称
+        let projectName = this.cleanProjectName(rawProjectName);
+
+        // 对于特殊情况处理分隔符
         if (tokenSymbol.includes("•")) {
           // 对于RUNECOIN特殊情况
           if (tokenSymbol === "RSIC•GENESIS•RUNE") {
@@ -409,31 +403,91 @@ class OkxService {
       }
     }
 
-    // 模式6：从标题直接提取代币和项目名
-    // 如 "list BABY (Babylon)" 或 "list Babylon (BABY)"
-    if (tokens.length === 0) {
-      // 这部分处理标题中直接提及的代币名，但可能缺少项目名的情况
-      const tokenFromTitle = processedTitle.match(
-        /list\s+([A-Z][A-Z0-9]+)\b(?!\s*\()/i
-      );
-      if (tokenFromTitle) {
-        const possibleToken = tokenFromTitle[1];
+    // 模式6：通过其他特定模式查找项目名
+    // 检查特殊模式如 "airdrop" 和 "completed distributing"
+    if (tokens.length > 0) {
+      for (let i = 0; i < tokens.length; i++) {
+        if (!tokens[i].projectName) {
+          // 尝试从特殊模式中提取项目名
+          if (title.includes("airdrop")) {
+            const airdropMatch = title.match(
+              /distributing\s+([A-Za-z0-9\s]+)\s+\(([A-Z0-9]+)\)/i
+            );
+            if (airdropMatch && airdropMatch[2] === tokens[i].tokenName) {
+              tokens[i].projectName = this.cleanProjectName(airdropMatch[1]);
+            }
+          }
 
-        // 如果看起来是代币符号且未被提取
-        if (
-          /^[A-Z0-9]{2,10}$/.test(possibleToken) &&
-          !["THE", "AND", "FOR", "LIST"].includes(possibleToken) &&
-          !tokens.some((t) => t.tokenName === possibleToken)
-        ) {
-          tokens.push({
-            tokenName: possibleToken,
-            projectName: null,
-          });
+          // 尝试从其他标题模式提取
+          if (!tokens[i].projectName) {
+            tokens[i].projectName = this.findProjectNameForToken(
+              tokens[i].tokenName,
+              title
+            );
+          }
         }
       }
     }
 
     return tokens;
+  }
+
+  // 新增辅助方法：清理项目名
+  static cleanProjectName(rawName) {
+    if (!rawName) return null;
+
+    return rawName
+      .replace(
+        /^(list|listing|add|adding|support|supporting|on|for|the|delay|delays|completed|distributing|open|Introducing)\s+/i,
+        ""
+      )
+      .replace(/\s+(list|listing|of|on|for|with|and|by)\s+/i, " ")
+      .replace(/\s+$/, "")
+      .trim();
+  }
+
+  // 新增辅助方法：根据代币符号在标题中查找项目名
+  static findProjectNameForToken(tokenSymbol, title) {
+    if (!tokenSymbol || !title) return null;
+
+    // 尝试各种模式匹配
+    // 1. TOKEN (Project Name)
+    const pattern1 = new RegExp(`${tokenSymbol}\\s*\\(([^)]+)\\)`, "i");
+    const match1 = title.match(pattern1);
+    if (match1) return this.cleanProjectName(match1[1]);
+
+    // 2. Project Name (TOKEN)
+    const pattern2 = new RegExp(
+      `([A-Za-z0-9'\\s\\.\\-&]+?)\\s*\\(${tokenSymbol}\\)`,
+      "i"
+    );
+    const match2 = title.match(pattern2);
+    if (match2) return this.cleanProjectName(match2[1]);
+
+    // 3. list PROJECT for spot trading
+    if (title.toLowerCase().includes(`list ${tokenSymbol.toLowerCase()} for`)) {
+      return tokenSymbol;
+    }
+
+    // 4. 特殊模式：completed distributing Project (TOKEN)
+    if (title.includes("completed distributing")) {
+      const pattern4 = new RegExp(
+        `completed distributing\\s+([A-Za-z0-9'\\s\\.\\-&]+?)\\s*\\(${tokenSymbol}\\)`,
+        "i"
+      );
+      const match4 = title.match(pattern4);
+      if (match4) return this.cleanProjectName(match4[1]);
+    }
+
+    // 5. will launch / open / list TOKEN
+    const pattern5 = new RegExp(
+      `(will launch|open|list)\\s+([A-Za-z0-9'\\s\\.\\-&]+?)\\s*\\(${tokenSymbol}\\)`,
+      "i"
+    );
+    const match5 = title.match(pattern5);
+    if (match5) return this.cleanProjectName(match5[2]);
+
+    return null;
   }
 }
 
