@@ -73,10 +73,19 @@ async function getExchangesList() {
   return exchanges.map((e) => e.exchange);
 }
 
-async function getAnnouncementTypes() {
-  const [types] = await db.query(
-    "SELECT DISTINCT type FROM announcements WHERE type != '未分类' ORDER BY type"
-  );
+async function getAnnouncementTypes(exchange = null) {
+  let query = "SELECT DISTINCT type FROM announcements WHERE type != '未分类'";
+  let params = [];
+
+  // 如果指定了交易所且不是"all_exchanges"，则按交易所筛选
+  if (exchange && exchange !== "all_exchanges") {
+    query += " AND exchange = ?";
+    params.push(exchange);
+  }
+
+  query += " ORDER BY type";
+
+  const [types] = await db.query(query, params);
   return types.map((t) => t.type);
 }
 

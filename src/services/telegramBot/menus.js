@@ -37,7 +37,7 @@ async function getExchangesMenu() {
 }
 
 async function getAnnouncementTypesMenu(exchange) {
-  const types = await queries.getAnnouncementTypes();
+  const types = await queries.getAnnouncementTypes(exchange);
 
   // 构建动态键盘
   const buttons = [];

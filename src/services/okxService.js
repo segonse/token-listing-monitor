@@ -213,12 +213,14 @@ class OkxService {
   static extractTokenInfo(title) {
     // 跳过不需要处理的公告类型
     if (
-      title.includes("Will Launch") ||
+      (title.includes("Will Launch") && !title.includes("spot trading")) ||
       title.includes("Perpetual Contract") ||
       title.includes("Perpetual Contracts") ||
       title.includes("Trading Bots") ||
       title.includes("Trading Bot") ||
-      (title.includes("Margin") && !title.includes("Simple Earn"))
+      (title.includes("Margin") &&
+        !title.includes("Simple Earn") &&
+        !title.includes("for spot trading"))
     ) {
       return [];
     }
@@ -227,7 +229,10 @@ class OkxService {
 
     // 预处理标题
     let processedTitle = title
-      .replace(/OKX (Will|Has|to|completed|Updates|delays)\s+/gi, "")
+      .replace(
+        /OKX (Will|Has|to|completed|Updates|delays|will|suspends)\s+/gi,
+        ""
+      )
       .replace(/\s+/g, " ")
       .trim();
 
@@ -271,12 +276,11 @@ class OkxService {
 
     // 模式3：处理多代币列表，如 "OKX to list ARKM, PIXEL, BOME for spot trading"
     if (
-      tokens.length === 0 &&
       processedTitle.includes("list") &&
       processedTitle.includes("for spot trading")
     ) {
       // 提取列表部分
-      const listMatch = processedTitle.match(/list\s+([A-Z0-9, ]+)\s+for/i);
+      const listMatch = processedTitle.match(/list\s+([A-Z0-9,\s]+)\s+for/i);
       if (listMatch) {
         const tokenList = listMatch[1];
         // 分割并清理代币列表
@@ -284,11 +288,26 @@ class OkxService {
 
         for (const item of tokenItems) {
           // 如果是单个代币标识符(全大写或含数字的标识符)
-          if (/^[A-Z0-9]+$/.test(item)) {
-            tokens.push({
-              tokenName: item,
-              projectName: null, // 没有项目名信息
-            });
+          if (/^[A-Z0-9]+$/.test(item) && item !== "AND") {
+            // 确保不是已经提取的
+            if (!tokens.some((t) => t.tokenName === item)) {
+              // 尝试从标题中提取项目名称
+              let projectName = null;
+
+              // 查找形如 "X (X empire)" 的项目名称
+              const projectMatch = new RegExp(
+                `${item}\\s*\\(([^)]+)\\)`,
+                "i"
+              ).exec(processedTitle);
+              if (projectMatch) {
+                projectName = projectMatch[1].trim();
+              }
+
+              tokens.push({
+                tokenName: item,
+                projectName: projectName,
+              });
+            }
           }
         }
       }
@@ -315,18 +334,46 @@ class OkxService {
       // 如果基础货币是标准货币，则提取计价货币作为代币
       if (baseIsBaseCurrency && !quoteIsBaseCurrency) {
         if (!tokens.some((t) => t.tokenName === quoteToken)) {
+          // 尝试从标题中找到项目名
+          let projectName = null;
+          if (
+            processedTitle.includes(`${quoteToken} (`) ||
+            processedTitle.includes(`(${quoteToken})`)
+          ) {
+            const projectMatch = processedTitle.match(
+              new RegExp(`([A-Za-z0-9\\s\\-&\\.]+)\\s*\\(${quoteToken}\\)`, "i")
+            );
+            if (projectMatch) {
+              projectName = projectMatch[1].trim();
+            }
+          }
+
           tokens.push({
             tokenName: quoteToken,
-            projectName: null,
+            projectName: projectName,
           });
         }
       }
       // 如果计价货币是标准货币，则提取基础货币作为代币
       else if (!baseIsBaseCurrency && quoteIsBaseCurrency) {
         if (!tokens.some((t) => t.tokenName === baseToken)) {
+          // 尝试从标题中找到项目名
+          let projectName = null;
+          if (
+            processedTitle.includes(`${baseToken} (`) ||
+            processedTitle.includes(`(${baseToken})`)
+          ) {
+            const projectMatch = processedTitle.match(
+              new RegExp(`([A-Za-z0-9\\s\\-&\\.]+)\\s*\\(${baseToken}\\)`, "i")
+            );
+            if (projectMatch) {
+              projectName = projectMatch[1].trim();
+            }
+          }
+
           tokens.push({
             tokenName: baseToken,
-            projectName: null,
+            projectName: projectName,
           });
         }
       }
@@ -340,17 +387,47 @@ class OkxService {
 
       if (jumpstartMatch) {
         const projectName = jumpstartMatch[1].trim();
-        const tokenSymbol = jumpstartMatch[2].trim();
+        let tokenSymbol = jumpstartMatch[2].trim();
 
-        // 对于特殊情况如 RSIC•GENESIS•RUNE，取最后一部分作为代币名
-        const finalTokenSymbol = tokenSymbol.includes("•")
-          ? tokenSymbol.split("•").pop()
-          : tokenSymbol;
+        // 对于特殊情况如 RSIC•GENESIS•RUNE，处理规则：
+        if (tokenSymbol.includes("•")) {
+          // 对于RUNECOIN特殊情况
+          if (tokenSymbol === "RSIC•GENESIS•RUNE") {
+            tokenSymbol = "RUNE";
+          } else {
+            // 其他情况取最后一部分
+            tokenSymbol = tokenSymbol.split("•").pop();
+          }
+        }
 
-        if (!tokens.some((t) => t.tokenName === finalTokenSymbol)) {
+        if (!tokens.some((t) => t.tokenName === tokenSymbol)) {
           tokens.push({
-            tokenName: finalTokenSymbol,
+            tokenName: tokenSymbol,
             projectName: projectName,
+          });
+        }
+      }
+    }
+
+    // 模式6：从标题直接提取代币和项目名
+    // 如 "list BABY (Babylon)" 或 "list Babylon (BABY)"
+    if (tokens.length === 0) {
+      // 这部分处理标题中直接提及的代币名，但可能缺少项目名的情况
+      const tokenFromTitle = processedTitle.match(
+        /list\s+([A-Z][A-Z0-9]+)\b(?!\s*\()/i
+      );
+      if (tokenFromTitle) {
+        const possibleToken = tokenFromTitle[1];
+
+        // 如果看起来是代币符号且未被提取
+        if (
+          /^[A-Z0-9]{2,10}$/.test(possibleToken) &&
+          !["THE", "AND", "FOR", "LIST"].includes(possibleToken) &&
+          !tokens.some((t) => t.tokenName === possibleToken)
+        ) {
+          tokens.push({
+            tokenName: possibleToken,
+            projectName: null,
           });
         }
       }
