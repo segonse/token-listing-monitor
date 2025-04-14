@@ -1,0 +1,46 @@
+ZEUS	list Zeus Network
+VENOM	list Venom
+GPT	list QnA3.AI
+ZERO	list ZeroLend
+RUNECOIN	RUNE
+MSN	list Meson Network
+SAFE	list Safe
+MERL	list Merlin Chain
+PRCL	list Parcl
+BLOCK	list BlockGames
+FOXY	list Foxy
+ATH	list Aethir
+ULTI	list Ultiverse
+MAX	OKX Announcement on Listing Matr1x
+L3	OKX suspends the listing of Layer3
+UXLINK	list UXLINK
+XR	list Xraders
+Catizen	list CATI
+PYUSD	list PayPal USD
+Major	list pre-market futures for MAJOR
+SWELL	the listing of Swell
+MemeFi	list MEMEFI
+Scroll	list SCR
+CAT	list Simons Cat
+MONKY	support the Wise Monkey
+APE	airdrop for ApeCoin
+Morpho	the listing of MORPHO
+Hyperliquid	list pre-market futures for HYPE
+Movement	list MOVE
+Nodecoin	completed distributing NC
+Jambo	open J
+DUCK	completed distributing DuckChain
+DuckChain	list DUCK
+Berachain	list BERA
+Animecoin	list ANIME
+J	completed distributing Jambo
+Babylon	list BABY
+Wayfinder	list PROMPT
+WalletConnect	list WCT
+Fluid	list FLUID
+Ultiverse	Introducing ULTI
+Notcoin	Introducing NOT
+RUNE	RUNECOIN
+QnA3.AI	GPT
+ZetaChain	Introducing ZETA
+Dmail	Introducing DMAIL

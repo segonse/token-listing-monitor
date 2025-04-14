@@ -26,7 +26,7 @@ async function getOKXAnnouncements() {
     let allTitles = [];
 
     // 获取1-12页的公告
-    for (let page = 1; page <= 1; page++) {
+    for (let page = 1; page <= 2; page++) {
       try {
         const response = await axios.get(
           "https://www.okx.com/api/v5/support/announcements",
@@ -36,7 +36,7 @@ async function getOKXAnnouncements() {
               annType: "announcements-new-listings",
             },
             headers: {
-              "Accept-Language": "en-US",
+              "Accept-Language": "zh-CN",
             },
             httpsAgent: agent,
             timeout: 30000,

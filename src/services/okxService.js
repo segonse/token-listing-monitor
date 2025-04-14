@@ -70,7 +70,7 @@ class OkxService {
             const baseAnnouncement = {
               exchange: "OKX",
               title: item.title,
-              description: item.title, // OKX没有description字段，使用title代替
+              description: "", // OKX没有description字段
               url: item.url,
               publishTime: new Date(parseInt(item.pTime)),
               // 提取代币信息
@@ -143,7 +143,7 @@ class OkxService {
           return {
             exchange: "OKX",
             title: item.title,
-            description: item.title,
+            description: "",
             type: "jumpstart", // 所有Jumpstart公告统一分类
             url: item.url,
             publishTime: new Date(parseInt(item.pTime)),
@@ -169,11 +169,19 @@ class OkxService {
       types.push("盘前");
     }
 
-    // 判断是否是上新公告
+    // 判断是否是上新公告 - 改进判断逻辑
     if (
-      (lowerTitle.includes("list") || lowerTitle.includes("add")) &&
-      (lowerTitle.includes("for spot trading") ||
-        lowerTitle.includes("spot trading pair"))
+      // 标准上新公告
+      ((lowerTitle.includes("list") || lowerTitle.includes("add")) &&
+        (lowerTitle.includes("for spot trading") ||
+          lowerTitle.includes("spot trading pair"))) ||
+      // 新增支持交易对的公告
+      (lowerTitle.includes("support") &&
+        lowerTitle.includes("spot trading pair")) ||
+      // 将要上线的交易对公告
+      (lowerTitle.includes("will launch") &&
+        lowerTitle.includes("/") &&
+        lowerTitle.includes("for spot trading"))
     ) {
       types.push("上新");
     }
@@ -261,7 +269,70 @@ class OkxService {
       }
     }
 
-    // 模式3：处理Jumpstart公告
+    // 模式3：处理多代币列表，如 "OKX to list ARKM, PIXEL, BOME for spot trading"
+    if (
+      tokens.length === 0 &&
+      processedTitle.includes("list") &&
+      processedTitle.includes("for spot trading")
+    ) {
+      // 提取列表部分
+      const listMatch = processedTitle.match(/list\s+([A-Z0-9, ]+)\s+for/i);
+      if (listMatch) {
+        const tokenList = listMatch[1];
+        // 分割并清理代币列表
+        const tokenItems = tokenList.split(",").map((item) => item.trim());
+
+        for (const item of tokenItems) {
+          // 如果是单个代币标识符(全大写或含数字的标识符)
+          if (/^[A-Z0-9]+$/.test(item)) {
+            tokens.push({
+              tokenName: item,
+              projectName: null, // 没有项目名信息
+            });
+          }
+        }
+      }
+    }
+
+    // 模式4：处理交易对格式
+    const pairRegex = /([A-Z0-9]+)\/([A-Z0-9]+)/g;
+    while ((match = pairRegex.exec(processedTitle)) !== null) {
+      const baseToken = match[1];
+      const quoteToken = match[2];
+
+      // 基础货币通常是USDT, USDC等
+      const baseIsBaseCurrency = ["USDT", "USDC", "BTC", "ETH", "BNB"].includes(
+        baseToken
+      );
+      const quoteIsBaseCurrency = [
+        "USDT",
+        "USDC",
+        "BTC",
+        "ETH",
+        "BNB",
+      ].includes(quoteToken);
+
+      // 如果基础货币是标准货币，则提取计价货币作为代币
+      if (baseIsBaseCurrency && !quoteIsBaseCurrency) {
+        if (!tokens.some((t) => t.tokenName === quoteToken)) {
+          tokens.push({
+            tokenName: quoteToken,
+            projectName: null,
+          });
+        }
+      }
+      // 如果计价货币是标准货币，则提取基础货币作为代币
+      else if (!baseIsBaseCurrency && quoteIsBaseCurrency) {
+        if (!tokens.some((t) => t.tokenName === baseToken)) {
+          tokens.push({
+            tokenName: baseToken,
+            projectName: null,
+          });
+        }
+      }
+    }
+
+    // 模式5：处理Jumpstart公告
     if (title.includes("Introducing") && title.includes("on OKX Jumpstart")) {
       const jumpstartRegex =
         /Introducing\s+([A-Za-z0-9'\s\.\-&]+?)\s*\(([A-Za-z0-9•\-\.]+)\)/i;
@@ -272,7 +343,9 @@ class OkxService {
         const tokenSymbol = jumpstartMatch[2].trim();
 
         // 对于特殊情况如 RSIC•GENESIS•RUNE，取最后一部分作为代币名
-        const finalTokenSymbol = tokenSymbol.split("•").pop();
+        const finalTokenSymbol = tokenSymbol.includes("•")
+          ? tokenSymbol.split("•").pop()
+          : tokenSymbol;
 
         if (!tokens.some((t) => t.tokenName === finalTokenSymbol)) {
           tokens.push({

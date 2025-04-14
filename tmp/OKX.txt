@@ -1,20 +1,40 @@
-OKX will launch WCT/USDT for spot trading
-OKX to list perpetual for PROMPT crypto, along with its margin trading and Simple Earn
-OKX to list perpetual for BABY crypto, along with its margin trading and Simple Earn
-OKX to list BABY (Babylon) for spot trading and deliver pre-market futures for BABY crypto
-OKX to list perpetual for XAUT crypto, along with its margin trading and Simple Earn
-OKX to list PROMPT (Wayfinder) for spot trading
-OKX to list WCT (WalletConnect) for spot trading
-OKX to list pre-market futures for BABY (Babylon) crypto
-OKX to list perpetual futures for GUN crypto
-OKX to list FLUID (Fluid) for spot trading
-OKX to list perpetual futures for JELLYJELLY crypto
-OKX has completed distributing PARTI (Particle Network) airdrop
-OKX to list perpetual for PARTI crypto, along with its margin trading and Simple Earn
-OKX to list NAVX (NAVI Protocol) for spot trading
-OKX to list PARTI (Particle Network) for spot trading
-OKX to list perpetual futures for BR crypto
-OKX to list perpetual futures for GPS crypto
-OKX to list perpetual futures for SHELL crypto
-OKX to list perpetual for KAITO crypto, along with its margin trading and Simple Earn
-OKX to list KAITO (Kaito) for spot trading
+欧易关于开启 WCT/USDT 现货交易的公告
+欧易关于 PROMPT 杠杆交易、永续合约及简单赚币上线的公告
+欧易关于 BABY 杠杆交易、永续合约及简单赚币上线的公告
+欧易关于上线 BABY (Babylon) 现货交易及交割 BABY 盘前交易合约的公告
+欧易关于 XAUT 杠杆交易、永续合约及简单赚币上线的公告
+欧易关于上线 PROMPT (Wayfinder) 现货交易的公告
+欧易关于上线 WCT (WalletConnect) 现货交易的公告
+欧易关于 BABY (Babylon) 盘前交易正式上线的公告
+欧易关于 GUN 永续合约正式上线的公告
+欧易关于上线 FLUID (Fluid) 现货交易的公告
+欧易关于 JELLYJELLY 永续合约正式上线的公告
+欧易关于完成发放 PARTI (Particle Network) 空投币的公告
+欧易关于 PARTI 杠杆交易、永续合约及简单赚币上线的公告
+欧易关于上线 NAVX (NAVI Protocol) 现货交易的公告
+欧易关于上线 PARTI (Particle Network) 现货交易的公告
+欧易关于 BR 永续合约正式上线的公告
+欧易关于 GPS 永续合约正式上线的公告
+欧易关于 SHELL 永续合约正式上线的公告
+欧易关于 KAITO 杠杆交易、永续合约及简单赚币上线的公告
+欧易关于上线 KAITO (Kaito) 现货交易的公告
+欧易关于 HYPE 永续合约正式上线及交割 HYPE 盘前交易合约的公告
+欧易关于上线 PI (Pi Network) 现货交易的补充说明
+欧易关于 IP 杠杆交易、永续合约及简单赚币上线的公告
+欧易关于上线 PI (Pi Network) 现货交易的公告
+欧易关于 LAYER 永续合约正式上线的公告
+欧易关于上线 IP (Story Protocol) 现货交易的公告
+欧易关于 BERA 杠杆交易、永续合约及简单赚币上线的公告
+欧易关于上线 BERA (Berachain) 现货交易的公告
+欧易关于 AVAAI 、BUZZ、PIPPIN 永续合约正式上线的公告
+欧易关于 VINE 杠杆交易、永续合约及简单赚币上线的公告
+欧易关于上线 VINE (Vine Coin) 现货交易的公告
+欧易关于 ARC 、SWARMS、COOKIE 永续合约正式上线的公告
+欧易关于 ANIME 杠杆交易、永续合约及简单赚币上线的公告
+欧易关于上线 ANIME (Animecoin) 现货交易的公告
+欧易关于完成发放 Jambo (J) 空投币的公告
+欧易关于 J 杠杆交易、永续合约及简单赚币上线的公告
+欧易关于 S 杠杆交易、永续合约及简单赚币上线的公告
+欧易关于完成 FTM 置换的公告
+欧易关于 TRUMP 杠杆交易、永续合约及简单赚币上线的公告
+欧易关于上线 TRUMP (OFFICIAL TRUMP) 现货交易的公告

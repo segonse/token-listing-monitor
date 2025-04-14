@@ -251,7 +251,7 @@ class MonitorService {
       // 获取OKX历史数据
       if (exchangesToFetch.okx) {
         console.log("获取OKX历史公告数据...");
-        const okxStartPage = 12;
+        const okxStartPage = 13;
         const okxEndPage = 1;
 
         // 从高页码向低页码获取
