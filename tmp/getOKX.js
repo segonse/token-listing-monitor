@@ -9,6 +9,11 @@ async function getOKXAnnouncements() {
     // 获取随机代理配置
     const proxyConfig = getDynamicProxyConfig();
 
+    // 修改配置中的 username，将 BR 替换为 TR
+    proxyConfig.auth.username = proxyConfig.auth.username
+      .replace("region-BR", "region-TR")
+      .replace("sessid-BR", "sessid-TR");
+
     // 创建代理隧道
     const agent = tunnel.httpsOverHttp({
       proxy: {
@@ -28,7 +33,10 @@ async function getOKXAnnouncements() {
           {
             params: {
               page: page,
-              annType: "announcements-jumpstart",
+              annType: "announcements-new-listings",
+            },
+            headers: {
+              "Accept-Language": "en-US",
             },
             httpsAgent: agent,
             timeout: 30000,
@@ -55,7 +63,7 @@ async function getOKXAnnouncements() {
 
     // 将所有标题写入文件，每个标题占一行
     if (allTitles.length > 0) {
-      await fs.writeFile("tmp/OKX2.txt", allTitles.join("\n"));
+      await fs.writeFile("tmp/OKX.txt", allTitles.join("\n"));
       console.log(`成功获取${allTitles.length}条公告标题并保存到文件`);
     } else {
       console.log("未获取到任何公告");

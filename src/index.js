@@ -98,7 +98,10 @@ const startServer = async () => {
         );
 
         setTimeout(async () => {
-          await MonitorService.fetchHistoricalAnnouncements();
+          // 传入需要获取的交易所参数
+          await MonitorService.fetchHistoricalAnnouncements(
+            needsHistoricalData
+          );
         }, 5000); // 延迟5秒后开始获取历史数据
       }
     } catch (error) {

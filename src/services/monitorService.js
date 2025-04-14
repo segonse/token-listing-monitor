@@ -202,7 +202,9 @@ class MonitorService {
   }
 
   // 历史数据获取方法（用于初始化或手动获取历史数据）
-  static async fetchHistoricalAnnouncements() {
+  static async fetchHistoricalAnnouncements(
+    exchangesToFetch = { binance: true, okx: true }
+  ) {
     try {
       console.log("开始获取历史公告数据...");
 
@@ -218,51 +220,56 @@ class MonitorService {
         storedCombinations.set(key, true);
       }
 
-      // 获取币安历史数据
-      console.log("获取币安历史公告数据...");
       let binanceAnnouncements = [];
-      const binanceStartPage = 12;
-      const binanceEndPage = 1;
+      let okxAnnouncements = [];
 
-      // 从高页码向低页码获取
-      for (let page = binanceStartPage; page >= binanceEndPage; page--) {
-        console.log(`获取币安历史数据 - 第 ${page} 页...`);
-        const announcements = await BinanceService.getAnnouncements(page);
+      // 获取币安历史数据
+      if (exchangesToFetch.binance) {
+        console.log("获取币安历史公告数据...");
+        const binanceStartPage = 12;
+        const binanceEndPage = 1;
 
-        if (!announcements || announcements.length === 0) {
-          console.log(`第 ${page} 页没有数据，继续获取下一页`);
-          continue;
-        }
+        // 从高页码向低页码获取
+        for (let page = binanceStartPage; page >= binanceEndPage; page--) {
+          console.log(`获取币安历史数据 - 第 ${page} 页...`);
+          const announcements = await BinanceService.getAnnouncements(page);
 
-        binanceAnnouncements = [...binanceAnnouncements, ...announcements];
+          if (!announcements || announcements.length === 0) {
+            console.log(`第 ${page} 页没有数据，继续获取下一页`);
+            continue;
+          }
 
-        // 避免请求过于频繁
-        if (page > binanceEndPage) {
-          await new Promise((resolve) => setTimeout(resolve, 3000));
+          binanceAnnouncements = [...binanceAnnouncements, ...announcements];
+
+          // 避免请求过于频繁
+          if (page > binanceEndPage) {
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+          }
         }
       }
 
       // 获取OKX历史数据
-      console.log("获取OKX历史公告数据...");
-      let okxAnnouncements = [];
-      const okxStartPage = 12;
-      const okxEndPage = 1;
+      if (exchangesToFetch.okx) {
+        console.log("获取OKX历史公告数据...");
+        const okxStartPage = 12;
+        const okxEndPage = 1;
 
-      // 从高页码向低页码获取
-      for (let page = okxStartPage; page >= okxEndPage; page--) {
-        console.log(`获取OKX历史数据 - 第 ${page} 页...`);
-        const announcements = await OkxService.getAnnouncements(page);
+        // 从高页码向低页码获取
+        for (let page = okxStartPage; page >= okxEndPage; page--) {
+          console.log(`获取OKX历史数据 - 第 ${page} 页...`);
+          const announcements = await OkxService.getAnnouncements(page);
 
-        if (!announcements || announcements.length === 0) {
-          console.log(`第 ${page} 页没有数据，继续获取下一页`);
-          continue;
-        }
+          if (!announcements || announcements.length === 0) {
+            console.log(`第 ${page} 页没有数据，继续获取下一页`);
+            continue;
+          }
 
-        okxAnnouncements = [...okxAnnouncements, ...announcements];
+          okxAnnouncements = [...okxAnnouncements, ...announcements];
 
-        // 避免请求过于频繁
-        if (page > okxEndPage) {
-          await new Promise((resolve) => setTimeout(resolve, 3000));
+          // 避免请求过于频繁
+          if (page > okxEndPage) {
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+          }
         }
       }
 

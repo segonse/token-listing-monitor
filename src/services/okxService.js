@@ -27,6 +27,11 @@ class OkxService {
       // 获取随机代理配置
       const proxyConfig = getDynamicProxyConfig();
 
+      // 修改配置中的 username，将 BR 替换为 TR
+      proxyConfig.auth.username = proxyConfig.auth.username
+        .replace("region-BR", "region-TR")
+        .replace("sessid-BR", "sessid-TR");
+
       // 创建代理隧道
       const agent = tunnel.httpsOverHttp({
         proxy: {
@@ -42,6 +47,9 @@ class OkxService {
           params: {
             page: page,
             annType: "announcements-new-listings",
+          },
+          headers: {
+            "Accept-Language": "en-US",
           },
           httpsAgent: agent,
           timeout: 30000,
@@ -94,6 +102,11 @@ class OkxService {
       // 获取随机代理配置
       const proxyConfig = getDynamicProxyConfig();
 
+      // 修改配置中的 username，将 BR 替换为 TR
+      proxyConfig.auth.username = proxyConfig.auth.username
+        .replace("region-BR", "region-TR")
+        .replace("sessid-BR", "sessid-TR");
+
       // 创建代理隧道
       const agent = tunnel.httpsOverHttp({
         proxy: {
@@ -109,6 +122,9 @@ class OkxService {
           params: {
             page: 1,
             annType: "announcements-jumpstart",
+          },
+          headers: {
+            "Accept-Language": "en-US",
           },
           httpsAgent: agent,
           timeout: 30000,
