@@ -75,12 +75,28 @@ const startServer = async () => {
 
     // 首次启动时检查是否需要获取历史数据
     try {
-      const [existingAnnouncements] = await db.query(
-        "SELECT COUNT(*) as count FROM announcements"
+      // 获取各交易所的公告数量
+      const [binanceCount] = await db.query(
+        "SELECT COUNT(*) as count FROM announcements WHERE exchange = 'Binance'"
+      );
+      const [okxCount] = await db.query(
+        "SELECT COUNT(*) as count FROM announcements WHERE exchange = 'OKX'"
       );
 
-      if (existingAnnouncements[0].count === 0) {
+      const needsHistoricalData = {
+        binance: binanceCount[0].count === 0,
+        okx: okxCount[0].count === 0,
+      };
+
+      // 如果任何一个交易所需要历史数据，则进行获取
+      if (needsHistoricalData.binance || needsHistoricalData.okx) {
         console.log("首次启动，自动获取历史数据...");
+        console.log(
+          `需要获取: ${needsHistoricalData.binance ? "Binance" : ""} ${
+            needsHistoricalData.okx ? "OKX" : ""
+          }`
+        );
+
         setTimeout(async () => {
           await MonitorService.fetchHistoricalAnnouncements();
         }, 5000); // 延迟5秒后开始获取历史数据

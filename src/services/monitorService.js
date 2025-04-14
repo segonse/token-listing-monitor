@@ -27,7 +27,7 @@ class MonitorService {
       // 获取各交易所公告
       const [
         // bybitAnnouncements,
-        // okxAnnouncements,
+        okxAnnouncements,
         binanceAnnouncements,
         // bitgetAnnouncements,
         // kucoinAnnouncements,
@@ -36,7 +36,7 @@ class MonitorService {
         // xtAnnouncements,
       ] = await Promise.all([
         // BybitService.getAllAnnouncements(),
-        // OkxService.getAnnouncements(),
+        OkxService.getAnnouncements(),
         BinanceService.getAnnouncements(),
         // BitgetService.getAnnouncements(),
         // KucoinService.getAnnouncements(),
@@ -48,7 +48,7 @@ class MonitorService {
       // 合并所有公告
       const allAnnouncements = [
         // ...bybitAnnouncements,
-        // ...okxAnnouncements,
+        ...okxAnnouncements,
         ...binanceAnnouncements,
         // ...bitgetAnnouncements,
         // ...kucoinAnnouncements,
@@ -64,7 +64,7 @@ class MonitorService {
 
       console.log(`获取到总共 ${allAnnouncements.length} 条公告`);
       // console.log(`- Bybit: ${bybitAnnouncements.length} 条`);
-      // console.log(`- OKX: ${okxAnnouncements.length} 条`);
+      console.log(`- OKX: ${okxAnnouncements.length} 条`);
       console.log(`- Binance: ${binanceAnnouncements.length} 条`);
       // console.log(`- Bitget: ${bitgetAnnouncements.length} 条`);
       // console.log(`- KuCoin: ${kucoinAnnouncements.length} 条`);
@@ -206,34 +206,7 @@ class MonitorService {
     try {
       console.log("开始获取历史公告数据...");
 
-      const startPage = 12; // 起始页码
-      const endPage = 1; // 结束页码
-      let allAnnouncements = [];
-
-      // 从高页码向低页码获取
-      for (let page = startPage; page >= endPage; page--) {
-        console.log(`获取币安历史数据 - 第 ${page} 页...`);
-        const announcements = await BinanceService.getAnnouncements(page);
-
-        if (!announcements || announcements.length === 0) {
-          console.log(`第 ${page} 页没有数据，继续获取下一页`);
-          continue;
-        }
-
-        allAnnouncements = [...allAnnouncements, ...announcements];
-
-        // 避免请求过于频繁
-        if (page > endPage) {
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-        }
-      }
-
-      console.log(`共获取到 ${allAnnouncements.length} 条历史公告数据`);
-
-      // 保存历史数据到数据库，但不发送通知
-      let savedCount = 0;
-
-      // 使用Map记录已存储的URL+类型组合
+      // 记录已存储的URL+类型组合
       const storedCombinations = new Map();
 
       // 先查询数据库中已有的公告
@@ -244,6 +217,63 @@ class MonitorService {
         const key = `${existing.url}|${existing.type}`;
         storedCombinations.set(key, true);
       }
+
+      // 获取币安历史数据
+      console.log("获取币安历史公告数据...");
+      let binanceAnnouncements = [];
+      const binanceStartPage = 12;
+      const binanceEndPage = 1;
+
+      // 从高页码向低页码获取
+      for (let page = binanceStartPage; page >= binanceEndPage; page--) {
+        console.log(`获取币安历史数据 - 第 ${page} 页...`);
+        const announcements = await BinanceService.getAnnouncements(page);
+
+        if (!announcements || announcements.length === 0) {
+          console.log(`第 ${page} 页没有数据，继续获取下一页`);
+          continue;
+        }
+
+        binanceAnnouncements = [...binanceAnnouncements, ...announcements];
+
+        // 避免请求过于频繁
+        if (page > binanceEndPage) {
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+        }
+      }
+
+      // 获取OKX历史数据
+      console.log("获取OKX历史公告数据...");
+      let okxAnnouncements = [];
+      const okxStartPage = 12;
+      const okxEndPage = 1;
+
+      // 从高页码向低页码获取
+      for (let page = okxStartPage; page >= okxEndPage; page--) {
+        console.log(`获取OKX历史数据 - 第 ${page} 页...`);
+        const announcements = await OkxService.getAnnouncements(page);
+
+        if (!announcements || announcements.length === 0) {
+          console.log(`第 ${page} 页没有数据，继续获取下一页`);
+          continue;
+        }
+
+        okxAnnouncements = [...okxAnnouncements, ...announcements];
+
+        // 避免请求过于频繁
+        if (page > okxEndPage) {
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+        }
+      }
+
+      // 合并所有公告
+      const allAnnouncements = [...binanceAnnouncements, ...okxAnnouncements];
+      console.log(`共获取到 ${allAnnouncements.length} 条历史公告数据`);
+      console.log(`- 币安: ${binanceAnnouncements.length} 条`);
+      console.log(`- OKX: ${okxAnnouncements.length} 条`);
+
+      // 保存历史数据到数据库，但不发送通知
+      let savedCount = 0;
 
       // 处理新公告
       for (const announcement of allAnnouncements) {
