@@ -242,10 +242,37 @@ class MonitorService {
                   retryCount > 0 ? `(重试第${retryCount}次)` : ""
                 }`
               );
+
+              // 调用 getAnnouncements 方法
               const announcements = await BinanceService.getAnnouncements(page);
 
+              // 增加日志，用于问题排查
+              console.log(
+                `获取到 Binance 第 ${page} 页数据: ${
+                  announcements ? announcements.length : 0
+                } 条`
+              );
+
+              // 即使返回了空数组，也考虑某些情况是因为错误导致的
+              // 如果连续多次获取到空数据，有可能是因为服务异常
               if (!announcements || announcements.length === 0) {
-                console.log(`第 ${page} 页没有数据，继续获取下一页`);
+                if (page > binanceEndPage - 3) {
+                  // 只对较新的页面执行此检查
+                  retryCount++;
+                  if (retryCount < maxRetries) {
+                    console.log(
+                      `第 ${page} 页数据为空，可能是临时错误，进行第 ${
+                        retryCount + 1
+                      } 次重试...`
+                    );
+                    const retryDelay = 5000 * retryCount;
+                    await new Promise((resolve) =>
+                      setTimeout(resolve, retryDelay)
+                    );
+                    continue;
+                  }
+                }
+                console.log(`第 ${page} 页确认没有数据，继续获取下一页`);
                 success = true;
                 continue;
               }
@@ -278,7 +305,7 @@ class MonitorService {
         }
       }
 
-      // 获取OKX历史数据
+      // 获取OKX历史数据 - 使用相同的增强逻辑
       if (exchangesToFetch.okx) {
         console.log("获取OKX历史公告数据...");
         const okxStartPage = 13;
@@ -297,11 +324,36 @@ class MonitorService {
                   retryCount > 0 ? `(重试第${retryCount}次)` : ""
                 }`
               );
+
               const announcements = await OkxService.getAnnouncements(page);
 
+              // 增加日志
+              console.log(
+                `获取到 OKX 第 ${page} 页数据: ${
+                  announcements ? announcements.length : 0
+                } 条`
+              );
+
+              // 同样对空结果进行特殊处理
               if (!announcements || announcements.length === 0) {
-                console.log(`第 ${page} 页没有数据，继续获取下一页`);
-                success = true; // 虽然没有数据，但请求成功了
+                if (page > okxEndPage - 3) {
+                  // 只对较新的页面执行此检查
+                  retryCount++;
+                  if (retryCount < maxRetries) {
+                    console.log(
+                      `第 ${page} 页数据为空，可能是临时错误，进行第 ${
+                        retryCount + 1
+                      } 次重试...`
+                    );
+                    const retryDelay = 5000 * retryCount;
+                    await new Promise((resolve) =>
+                      setTimeout(resolve, retryDelay)
+                    );
+                    continue;
+                  }
+                }
+                console.log(`第 ${page} 页确认没有数据，继续获取下一页`);
+                success = true;
                 continue;
               }
 

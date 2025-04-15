@@ -362,7 +362,6 @@ class OkxService {
           projectName = part2;
 
           // 检查是否更像旧格式: part2是全大写/数字且较短，part1较长或包含空格/混合大小写
-          // 条件：part2是全大写/数字且较短，part1较长或包含空格/混合大小写
           const part2LooksLikeToken =
             /^[A-Z0-9•]+$/.test(part2) && part2.length < 15;
           const part1LooksLikeProject =
@@ -375,6 +374,9 @@ class OkxService {
             tokenSymbol = part2;
             projectName = part1;
           }
+
+          // 清理代币符号前缀 - 新增：移除前缀"list"、"add"等
+          tokenSymbol = tokenSymbol.replace(/^(list|add|support)\s+/i, "");
 
           // 清理代币符号中的特殊字符
           if (tokenSymbol.includes("•")) {
@@ -414,18 +416,21 @@ class OkxService {
         const tokenItems = tokenList.split(",").map((item) => item.trim());
 
         for (const item of tokenItems) {
+          // 清理可能的前缀（如list，虽然不太可能出现在这里）
+          const cleanedItem = item.replace(/^(list|add|support)\s+/i, "");
+
           // 如果是单个代币标识符(全大写或含数字的标识符)
-          if (/^[A-Z0-9]+$/.test(item) && item !== "AND") {
+          if (/^[A-Z0-9]+$/.test(cleanedItem) && cleanedItem !== "AND") {
             // 确保不是已经提取的
-            if (!tokens.some((t) => t.tokenName === item)) {
+            if (!tokens.some((t) => t.tokenName === cleanedItem)) {
               // 尝试从标题中提取项目名称
               let projectName = this.findProjectNameForToken(
-                item,
+                cleanedItem,
                 processedTitle
               );
 
               tokens.push({
-                tokenName: item,
+                tokenName: cleanedItem,
                 projectName: projectName,
               });
             }
