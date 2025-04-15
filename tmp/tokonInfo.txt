@@ -1,44 +1,51 @@
-SLN	Smart Layer Network	1809
-ZETA	ZetaChain	1818
-DMAIL	Dmail	1821
-ICE	Ice	1823
-ZEUS	Zeus Network	1831
-VENOM	Venom	1835
-GPT	QnA3.AI	1846
-ATH	Aethir	1855
-ULTI	Ultiverse	1857
-MAX	OKX Announcement Listing Matr1x	1878
-L3	listing Layer3	1881
-DEGEN		1887
-SLERF		1887
-UXLINK	UXLINK	1889
-XR	Xraders	1891
-EURC		1901
-Catizen	CATI	1903
-PYUSD	PayPal USD	1940
-Major	pre-market futures MAJOR	1951
-SWELL	listing Swell	1954
-MemeFi	MEMEFI	1959
-Scroll	SCR	1962
-CAT	Simons Cat	1968
-MONKY	the Wise Monkey	1973
-APE	airdrop ApeCoin	1973
-Morpho	listing MORPHO	1985
-Hyperliquid	pre-market futures HYPE	2014
-Movement	MOVE	2016
-Nodecoin	distributing NC	2018
-Jambo	J	2020
-DUCK	distributing DuckChain	2022
-DuckChain	DUCK	2026
-Berachain	BERA	2045
-Animecoin	ANIME	2051
-J	distributing Jambo	2052
-Babylon	BABY	2061
-Wayfinder	PROMPT	2065
-WalletConnect	WCT	2066
-Fluid	FLUID	2070
-Ultiverse	ULTI	2083
-Notcoin	NOT	2084
-RUNE	RUNECOIN	2085
-QnA3.AI	GPT	2088
-ZetaChain	ZETA	2089
+SLN	Smart Layer Network	2376
+ZETA	ZetaChain	2385
+DMAIL	Dmail	2388
+ICE	Ice	2390
+FOXY	Foxy	2394
+ZEUS	Zeus Network	2398
+VENOM	Venom	2402
+GPT	QnA3.AI	2413
+ZERO	ZeroLend	2417
+RUNECOIN	RUNE	2418
+MSN	Meson Network	2420
+SAFE		2421
+MERL	Merlin Chain	2424
+PRCL	Parcl	2426
+MEW		2428
+BLOCK	BlockGames	2432
+ATH	Aethir	2441
+ULTI	Ultiverse	2443
+MAX	OKX Announcement Listing Matr1x	2465
+L3	Layer3	2468
+DEGEN		2474
+SLERF		2474
+UXLINK	UXLINK	2476
+XR	Xraders	2478
+EURC		2488
+Catizen	CATI	2490
+PYUSD	PayPal USD	2526
+Major	pre-market for MAJOR	2537
+SWELL	Swell	2540
+MemeFi	MEMEFI	2545
+Scroll	SCR	2548
+CAT	Simons Cat	2554
+MONKY	Wise Monkey	2559
+APE	ApeCoin	2559
+Morpho	MORPHO	2571
+Hyperliquid	pre-market for HYPE	2600
+Nodecoin	NC	2603
+J	Jambo	2605
+DUCK	DuckChain	2607
+NC	Nodecoin	2609
+Berachain	BERA	2630
+Animecoin	ANIME	2636
+Wayfinder	PROMPT	2650
+WalletConnect	WCT	2651
+Babylon	pre-market for BABY	2652
+Fluid	FLUID	2655
+Ultiverse	ULTI	2667
+Notcoin	NOT	2668
+RUNE	RUNECOIN	2669
+QnA3.AI	GPT	2672
+ZetaChain	ZETA	2673
