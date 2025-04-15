@@ -375,8 +375,10 @@ class OkxService {
             projectName = part1;
           }
 
-          // 清理代币符号前缀 - 新增：移除前缀"list"、"add"等
-          tokenSymbol = tokenSymbol.replace(/^(list|add|support)\s+/i, "");
+          // 清理代币符号前缀 - 扩展前缀列表，包括pre-market相关的前缀
+          tokenSymbol = tokenSymbol
+            .replace(/^(list|add|support)\s+/i, "")
+            .replace(/^pre-market\s+(futures\s+)?(for\s+)?/i, "");
 
           // 清理代币符号中的特殊字符
           if (tokenSymbol.includes("•")) {
@@ -417,7 +419,9 @@ class OkxService {
 
         for (const item of tokenItems) {
           // 清理可能的前缀（如list，虽然不太可能出现在这里）
-          const cleanedItem = item.replace(/^(list|add|support)\s+/i, "");
+          const cleanedItem = item
+            .replace(/^(list|add|support)\s+/i, "")
+            .replace(/^pre-market\s+(futures\s+)?(for\s+)?/i, "");
 
           // 如果是单个代币标识符(全大写或含数字的标识符)
           if (/^[A-Z0-9]+$/.test(cleanedItem) && cleanedItem !== "AND") {
@@ -552,10 +556,15 @@ class OkxService {
   static findProjectNameForToken(tokenSymbol, title) {
     if (!tokenSymbol || !title) return null;
 
+    // 处理 tokenSymbol 可能包含前缀的情况
+    const cleanTokenSymbol = tokenSymbol
+      .replace(/^(list|add|support)\s+/i, "")
+      .replace(/^pre-market\s+(futures\s+)?(for\s+)?/i, "");
+
     // 对于特定公告格式的处理，例如 "pre-market futures for MAJOR (Major)"
     if (title.includes("pre-market futures for")) {
       const preMarketPattern = new RegExp(
-        `pre-market futures for\\s+${tokenSymbol}\\s*\\(([^)]+)\\)`,
+        `pre-market futures for\\s+${cleanTokenSymbol}\\s*\\(([^)]+)\\)`,
         "i"
       );
       const preMarketMatch = title.match(preMarketPattern);
@@ -565,14 +574,17 @@ class OkxService {
     }
 
     // OKX格式：TOKEN (Project)
-    const okxPattern1 = new RegExp(`\\b${tokenSymbol}\\s*\\(([^)]+)\\)`, "i");
+    const okxPattern1 = new RegExp(
+      `\\b${cleanTokenSymbol}\\s*\\(([^)]+)\\)`,
+      "i"
+    );
     const okxMatch1 = title.match(okxPattern1);
     if (okxMatch1) {
       return this.cleanProjectName(okxMatch1[1]);
     }
 
     // 反向格式：Project (TOKEN)
-    const okxPattern2 = new RegExp(`([^(]+)\\s*\\(${tokenSymbol}\\)`, "i");
+    const okxPattern2 = new RegExp(`([^(]+)\\s*\\(${cleanTokenSymbol}\\)`, "i");
     const okxMatch2 = title.match(okxPattern2);
     if (okxMatch2) {
       return this.cleanProjectName(okxMatch2[1]);
