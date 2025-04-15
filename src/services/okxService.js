@@ -383,15 +383,14 @@ class OkxService {
         // 清理项目名称
         let projectName = this.cleanProjectName(rawProjectName);
 
-        // 对于特殊情况处理分隔符
-        if (tokenSymbol.includes("•")) {
-          // 对于RUNECOIN特殊情况
-          if (tokenSymbol === "RSIC•GENESIS•RUNE") {
-            tokenSymbol = "RUNE";
-          } else {
-            // 其他情况取最后一部分
-            tokenSymbol = tokenSymbol.split("•").pop();
-          }
+        // 特殊情况处理
+        if (tokenSymbol === "RSIC•GENESIS•RUNE") {
+          tokenSymbol = "RUNE";
+          projectName = "RUNECOIN";
+        }
+        // 一般情况下的特殊分隔符处理
+        else if (tokenSymbol.includes("•")) {
+          tokenSymbol = tokenSymbol.split("•").pop();
         }
 
         if (!tokens.some((t) => t.tokenName === tokenSymbol)) {
@@ -403,30 +402,34 @@ class OkxService {
       }
     }
 
-    // 模式6：通过其他特定模式查找项目名
-    // 检查特殊模式如 "airdrop" 和 "completed distributing"
+    // 添加最终检查和修正逻辑
     if (tokens.length > 0) {
-      for (let i = 0; i < tokens.length; i++) {
-        if (!tokens[i].projectName) {
-          // 尝试从特殊模式中提取项目名
-          if (title.includes("airdrop")) {
-            const airdropMatch = title.match(
-              /distributing\s+([A-Za-z0-9\s]+)\s+\(([A-Z0-9]+)\)/i
-            );
-            if (airdropMatch && airdropMatch[2] === tokens[i].tokenName) {
-              tokens[i].projectName = this.cleanProjectName(airdropMatch[1]);
-            }
-          }
+      tokens.forEach((token) => {
+        // 特殊代币名称修正
+        const corrections = {
+          L3: { project: "Layer3" },
+          MAJOR: { project: "Major" },
+          MONKY: { project: "Wise Monkey" },
+          APE: { project: "ApeCoin" },
+          DUCK: { project: "DuckChain" },
+          NC: { project: "Nodecoin" },
+          J: { project: "Jambo" },
+        };
 
-          // 尝试从其他标题模式提取
-          if (!tokens[i].projectName) {
-            tokens[i].projectName = this.findProjectNameForToken(
-              tokens[i].tokenName,
-              title
-            );
-          }
+        if (corrections[token.tokenName]) {
+          token.projectName = corrections[token.tokenName].project;
         }
-      }
+
+        // 如果项目名还包含不应有的前缀词，再次清理
+        if (token.projectName) {
+          token.projectName = token.projectName
+            .replace(
+              /^(listing|distributing|airdrop|pre-market futures)\s+/i,
+              ""
+            )
+            .trim();
+        }
+      });
     }
 
     return tokens;
@@ -436,56 +439,87 @@ class OkxService {
   static cleanProjectName(rawName) {
     if (!rawName) return null;
 
-    return rawName
-      .replace(
-        /^(list|listing|add|adding|support|supporting|on|for|the|delay|delays|completed|distributing|open|Introducing)\s+/i,
-        ""
-      )
-      .replace(/\s+(list|listing|of|on|for|with|and|by)\s+/i, " ")
-      .replace(/\s+$/, "")
-      .trim();
+    return (
+      rawName
+        // 移除开头的常见前缀词
+        .replace(
+          /^(list|listing|add|adding|support|supporting|on|for|the|delay|delays|completed|distributing|open|introducing|pre-market|futures|airdrop)\s+/i,
+          ""
+        )
+        // 移除中间的常见连接词
+        .replace(
+          /\s+(list|listing|of|on|for|with|and|by|crypto|futures|airdrop)\s+/i,
+          " "
+        )
+        // 移除后缀
+        .replace(/\s+(crypto|token)$/i, "")
+        .replace(/\s+$/, "")
+        .trim()
+    );
   }
 
   // 新增辅助方法：根据代币符号在标题中查找项目名
   static findProjectNameForToken(tokenSymbol, title) {
     if (!tokenSymbol || !title) return null;
 
-    // 尝试各种模式匹配
-    // 1. TOKEN (Project Name)
-    const pattern1 = new RegExp(`${tokenSymbol}\\s*\\(([^)]+)\\)`, "i");
-    const match1 = title.match(pattern1);
-    if (match1) return this.cleanProjectName(match1[1]);
+    // OKX格式：OKX to list TOKEN (Project) for spot trading
+    // 这种情况下，代币符号在前，项目名在括号中
 
-    // 2. Project Name (TOKEN)
-    const pattern2 = new RegExp(
+    // 首先尝试 TOKEN (Project) 模式
+    const okxPattern = new RegExp(`\\b${tokenSymbol}\\s*\\(([^)]+)\\)`, "i");
+    const okxMatch = title.match(okxPattern);
+    if (okxMatch) {
+      return this.cleanProjectName(okxMatch[1]);
+    }
+
+    // 尝试 Project (TOKEN) 模式 - 更通用的格式
+    const standardPattern = new RegExp(
       `([A-Za-z0-9'\\s\\.\\-&]+?)\\s*\\(${tokenSymbol}\\)`,
       "i"
     );
-    const match2 = title.match(pattern2);
-    if (match2) return this.cleanProjectName(match2[1]);
-
-    // 3. list PROJECT for spot trading
-    if (title.toLowerCase().includes(`list ${tokenSymbol.toLowerCase()} for`)) {
-      return tokenSymbol;
+    const standardMatch = title.match(standardPattern);
+    if (standardMatch) {
+      return this.cleanProjectName(standardMatch[1]);
     }
 
-    // 4. 特殊模式：completed distributing Project (TOKEN)
-    if (title.includes("completed distributing")) {
-      const pattern4 = new RegExp(
-        `completed distributing\\s+([A-Za-z0-9'\\s\\.\\-&]+?)\\s*\\(${tokenSymbol}\\)`,
+    // 特殊情况处理
+
+    // 处理空投相关
+    if (title.includes("airdrop") || title.includes("distributing")) {
+      // 匹配 "completed distributing ProjectName (TOKEN)"
+      const airdropPattern = new RegExp(
+        `(completed distributing|has completed distributing)\\s+([^(]+)\\s*\\(${tokenSymbol}\\)`,
         "i"
       );
-      const match4 = title.match(pattern4);
-      if (match4) return this.cleanProjectName(match4[1]);
+      const airdropMatch = title.match(airdropPattern);
+      if (airdropMatch) {
+        return this.cleanProjectName(airdropMatch[2]);
+      }
     }
 
-    // 5. will launch / open / list TOKEN
-    const pattern5 = new RegExp(
-      `(will launch|open|list)\\s+([A-Za-z0-9'\\s\\.\\-&]+?)\\s*\\(${tokenSymbol}\\)`,
-      "i"
-    );
-    const match5 = title.match(pattern5);
-    if (match5) return this.cleanProjectName(match5[2]);
+    // 处理特定代币的特殊情况
+    const specialTokens = {
+      L3: "Layer3",
+      MAJOR: "Major",
+      MONKY: "Wise Monkey",
+      APE: "ApeCoin",
+      BABY: "Babylon",
+      DUCK: "DuckChain",
+      J: "Jambo",
+      MOVE: "Movement",
+      NC: "Nodecoin",
+      NOT: "Notcoin",
+      ANIME: "Animecoin",
+    };
+
+    if (specialTokens[tokenSymbol]) {
+      return specialTokens[tokenSymbol];
+    }
+
+    // 尝试其他常见模式
+    if (title.toLowerCase().includes(`list ${tokenSymbol.toLowerCase()} for`)) {
+      return tokenSymbol; // 如果找不到项目名，返回代币名作为项目名
+    }
 
     return null;
   }

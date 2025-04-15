@@ -1,50 +1,44 @@
-ZEUS	list Zeus Network	1526
-VENOM	list Venom	1530
-GPT	list QnA3.AI	1541
-ZERO	list ZeroLend	1546
-RUNECOIN	RUNE	1547
-MSN	list Meson Network	1549
-SAFE		1550
-MERL	list Merlin Chain	1553
-PRCL	list Parcl	1555
-MEW		1557
-BLOCK	list BlockGames	1561
-FOXY	list Foxy	1562
-ATH	list Aethir	1570
-ULTI	list Ultiverse	1572
-MAX	OKX Announcement on Listing Matr1x	1593
-L3	the listing of Layer3	1596
-DEGEN		1602
-SLERF		1602
-UXLINK	list UXLINK	1604
-XR	list Xraders	1606
-EURC		1616
-Catizen	list CATI	1618
-PYUSD	list PayPal USD	1655
-Major	list pre-market futures for MAJOR	1666
-SWELL	the listing of Swell	1669
-MemeFi	list MEMEFI	1674
-Scroll	list SCR	1677
-CAT	list Simons Cat	1683
-MONKY	support the Wise Monkey	1688
-APE	airdrop for ApeCoin	1688
-Morpho	the listing of MORPHO	1700
-Hyperliquid	list pre-market futures for HYPE	1729
-Movement	list MOVE	1731
-Nodecoin	completed distributing NC	1733
-Jambo	open J	1735
-DUCK	completed distributing DuckChain	1737
-DuckChain	list DUCK	1741
-Berachain	list BERA	1760
-Animecoin	list ANIME	1766
-J	completed distributing Jambo	1767
-Babylon	list BABY	1776
-Wayfinder	list PROMPT	1780
-WalletConnect	list WCT	1781
-Fluid	list FLUID	1785
-Ultiverse	Introducing ULTI	1798
-Notcoin	Introducing NOT	1799
-RUNE	RUNECOIN	1800
-QnA3.AI	GPT	1803
-ZetaChain	Introducing ZETA	1804
-Dmail	Introducing DMAIL	1805
+SLN	Smart Layer Network	1809
+ZETA	ZetaChain	1818
+DMAIL	Dmail	1821
+ICE	Ice	1823
+ZEUS	Zeus Network	1831
+VENOM	Venom	1835
+GPT	QnA3.AI	1846
+ATH	Aethir	1855
+ULTI	Ultiverse	1857
+MAX	OKX Announcement Listing Matr1x	1878
+L3	listing Layer3	1881
+DEGEN		1887
+SLERF		1887
+UXLINK	UXLINK	1889
+XR	Xraders	1891
+EURC		1901
+Catizen	CATI	1903
+PYUSD	PayPal USD	1940
+Major	pre-market futures MAJOR	1951
+SWELL	listing Swell	1954
+MemeFi	MEMEFI	1959
+Scroll	SCR	1962
+CAT	Simons Cat	1968
+MONKY	the Wise Monkey	1973
+APE	airdrop ApeCoin	1973
+Morpho	listing MORPHO	1985
+Hyperliquid	pre-market futures HYPE	2014
+Movement	MOVE	2016
+Nodecoin	distributing NC	2018
+Jambo	J	2020
+DUCK	distributing DuckChain	2022
+DuckChain	DUCK	2026
+Berachain	BERA	2045
+Animecoin	ANIME	2051
+J	distributing Jambo	2052
+Babylon	BABY	2061
+Wayfinder	PROMPT	2065
+WalletConnect	WCT	2066
+Fluid	FLUID	2070
+Ultiverse	ULTI	2083
+Notcoin	NOT	2084
+RUNE	RUNECOIN	2085
+QnA3.AI	GPT	2088
+ZetaChain	ZETA	2089
