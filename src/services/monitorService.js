@@ -231,19 +231,49 @@ class MonitorService {
 
         // 从高页码向低页码获取
         for (let page = binanceStartPage; page >= binanceEndPage; page--) {
-          console.log(`获取币安历史数据 - 第 ${page} 页...`);
-          const announcements = await BinanceService.getAnnouncements(page);
+          let retryCount = 0;
+          const maxRetries = 3;
+          let success = false;
 
-          if (!announcements || announcements.length === 0) {
-            console.log(`第 ${page} 页没有数据，继续获取下一页`);
-            continue;
-          }
+          while (!success && retryCount < maxRetries) {
+            try {
+              console.log(
+                `获取币安历史数据 - 第 ${page} 页...${
+                  retryCount > 0 ? `(重试第${retryCount}次)` : ""
+                }`
+              );
+              const announcements = await BinanceService.getAnnouncements(page);
 
-          binanceAnnouncements = [...binanceAnnouncements, ...announcements];
+              if (!announcements || announcements.length === 0) {
+                console.log(`第 ${page} 页没有数据，继续获取下一页`);
+                success = true;
+                continue;
+              }
 
-          // 避免请求过于频繁
-          if (page > binanceEndPage) {
-            await new Promise((resolve) => setTimeout(resolve, 3000));
+              binanceAnnouncements = [
+                ...binanceAnnouncements,
+                ...announcements,
+              ];
+              success = true;
+
+              // 避免请求过于频繁
+              if (page > binanceEndPage) {
+                await new Promise((resolve) => setTimeout(resolve, 3000));
+              }
+            } catch (error) {
+              retryCount++;
+              console.error(
+                `获取币安第${page}页失败 (${retryCount}/${maxRetries}): ${error.message}`
+              );
+
+              if (retryCount < maxRetries) {
+                const retryDelay = 5000 * retryCount;
+                console.log(`将在 ${retryDelay / 1000} 秒后重试...`);
+                await new Promise((resolve) => setTimeout(resolve, retryDelay));
+              } else {
+                console.error(`获取币安第${page}页最终失败，跳过该页`);
+              }
+            }
           }
         }
       }
@@ -256,19 +286,47 @@ class MonitorService {
 
         // 从高页码向低页码获取
         for (let page = okxStartPage; page >= okxEndPage; page--) {
-          console.log(`获取OKX历史数据 - 第 ${page} 页...`);
-          const announcements = await OkxService.getAnnouncements(page);
+          let retryCount = 0;
+          const maxRetries = 3;
+          let success = false;
 
-          if (!announcements || announcements.length === 0) {
-            console.log(`第 ${page} 页没有数据，继续获取下一页`);
-            continue;
-          }
+          while (!success && retryCount < maxRetries) {
+            try {
+              console.log(
+                `获取OKX历史数据 - 第 ${page} 页...${
+                  retryCount > 0 ? `(重试第${retryCount}次)` : ""
+                }`
+              );
+              const announcements = await OkxService.getAnnouncements(page);
 
-          okxAnnouncements = [...okxAnnouncements, ...announcements];
+              if (!announcements || announcements.length === 0) {
+                console.log(`第 ${page} 页没有数据，继续获取下一页`);
+                success = true; // 虽然没有数据，但请求成功了
+                continue;
+              }
 
-          // 避免请求过于频繁
-          if (page > okxEndPage) {
-            await new Promise((resolve) => setTimeout(resolve, 3000));
+              okxAnnouncements = [...okxAnnouncements, ...announcements];
+              success = true;
+
+              // 避免请求过于频繁
+              if (page > okxEndPage) {
+                await new Promise((resolve) => setTimeout(resolve, 3000));
+              }
+            } catch (error) {
+              retryCount++;
+              console.error(
+                `获取OKX第${page}页失败 (${retryCount}/${maxRetries}): ${error.message}`
+              );
+
+              if (retryCount < maxRetries) {
+                // 重试前增加延迟，避免连续失败
+                const retryDelay = 5000 * retryCount; // 递增延迟
+                console.log(`将在 ${retryDelay / 1000} 秒后重试...`);
+                await new Promise((resolve) => setTimeout(resolve, retryDelay));
+              } else {
+                console.error(`获取OKX第${page}页最终失败，跳过该页`);
+              }
+            }
           }
         }
       }

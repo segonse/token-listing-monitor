@@ -243,22 +243,38 @@ class OkxService {
       .replace(/\s+/g, " ")
       .trim();
 
-    // 模式1：处理标准格式 "Project Name (TOKEN)"
+    // 模式1：处理标准格式 "Project Name (TOKEN)" 或 "TOKEN (Project Name)"
     const regex = /([A-Za-z0-9'\s\.\-&]+?)\s*\(([A-Za-z0-9]+)\)/g;
     let match;
 
     while ((match = regex.exec(processedTitle)) !== null) {
-      const rawProjectName = match[1].trim();
-      const tokenSymbol = match[2].trim();
+      const name1 = match[1].trim();
+      const name2 = match[2].trim();
+
+      // 确定哪个是代币名、哪个是项目名
+      let tokenSymbol, projectName;
+
+      // 如果第二个部分全是大写字母/数字，很可能是代币符号
+      if (/^[A-Z0-9]+$/.test(name2)) {
+        tokenSymbol = name2;
+        projectName = this.cleanProjectName(name1);
+      }
+      // 如果第一个部分全是大写字母/数字，很可能是代币符号
+      else if (/^[A-Z0-9]+$/.test(name1)) {
+        tokenSymbol = name1;
+        projectName = this.cleanProjectName(name2);
+      }
+      // 默认情况下，把第二个作为代币符号（不太可能发生）
+      else {
+        tokenSymbol = name2;
+        projectName = this.cleanProjectName(name1);
+      }
 
       // 过滤掉基础货币和已知的非代币符号
       if (
         !tokenSymbol.endsWith("USDT") &&
         !["USD", "USDC", "BTC", "ETH", "BNB", "BUSD"].includes(tokenSymbol)
       ) {
-        // 清理项目名称，移除常见前缀
-        let projectName = this.cleanProjectName(rawProjectName);
-
         // 避免添加重复代币
         if (!tokens.some((t) => t.tokenName === tokenSymbol)) {
           tokens.push({
@@ -414,10 +430,26 @@ class OkxService {
           DUCK: { project: "DuckChain" },
           NC: { project: "Nodecoin" },
           J: { project: "Jambo" },
+          MOVE: { project: "Movement" }, // 修复 MOVE/Movement 颠倒问题
+          BABY: { project: "Babylon" }, // 确保 BABY 的项目名是 Babylon
         };
 
         if (corrections[token.tokenName]) {
           token.projectName = corrections[token.tokenName].project;
+        }
+
+        // 检查是否有相反的情况（项目名和代币名颠倒）
+        for (const [correctTokenName, correctInfo] of Object.entries(
+          corrections
+        )) {
+          if (
+            token.projectName === correctTokenName &&
+            token.tokenName === correctInfo.project
+          ) {
+            // 交换项目名和代币名
+            token.projectName = correctInfo.project;
+            token.tokenName = correctTokenName;
+          }
         }
 
         // 如果项目名还包含不应有的前缀词，再次清理
@@ -462,64 +494,33 @@ class OkxService {
   static findProjectNameForToken(tokenSymbol, title) {
     if (!tokenSymbol || !title) return null;
 
-    // OKX格式：OKX to list TOKEN (Project) for spot trading
-    // 这种情况下，代币符号在前，项目名在括号中
-
-    // 首先尝试 TOKEN (Project) 模式
-    const okxPattern = new RegExp(`\\b${tokenSymbol}\\s*\\(([^)]+)\\)`, "i");
-    const okxMatch = title.match(okxPattern);
-    if (okxMatch) {
-      return this.cleanProjectName(okxMatch[1]);
-    }
-
-    // 尝试 Project (TOKEN) 模式 - 更通用的格式
-    const standardPattern = new RegExp(
-      `([A-Za-z0-9'\\s\\.\\-&]+?)\\s*\\(${tokenSymbol}\\)`,
-      "i"
-    );
-    const standardMatch = title.match(standardPattern);
-    if (standardMatch) {
-      return this.cleanProjectName(standardMatch[1]);
-    }
-
-    // 特殊情况处理
-
-    // 处理空投相关
-    if (title.includes("airdrop") || title.includes("distributing")) {
-      // 匹配 "completed distributing ProjectName (TOKEN)"
-      const airdropPattern = new RegExp(
-        `(completed distributing|has completed distributing)\\s+([^(]+)\\s*\\(${tokenSymbol}\\)`,
+    // 对于特定公告格式的处理，例如 "pre-market futures for MAJOR (Major)"
+    if (title.includes("pre-market futures for")) {
+      const preMarketPattern = new RegExp(
+        `pre-market futures for\\s+${tokenSymbol}\\s*\\(([^)]+)\\)`,
         "i"
       );
-      const airdropMatch = title.match(airdropPattern);
-      if (airdropMatch) {
-        return this.cleanProjectName(airdropMatch[2]);
+      const preMarketMatch = title.match(preMarketPattern);
+      if (preMarketMatch) {
+        return this.cleanProjectName(preMarketMatch[1]);
       }
     }
 
-    // 处理特定代币的特殊情况
-    const specialTokens = {
-      L3: "Layer3",
-      MAJOR: "Major",
-      MONKY: "Wise Monkey",
-      APE: "ApeCoin",
-      BABY: "Babylon",
-      DUCK: "DuckChain",
-      J: "Jambo",
-      MOVE: "Movement",
-      NC: "Nodecoin",
-      NOT: "Notcoin",
-      ANIME: "Animecoin",
-    };
-
-    if (specialTokens[tokenSymbol]) {
-      return specialTokens[tokenSymbol];
+    // OKX格式：TOKEN (Project)
+    const okxPattern1 = new RegExp(`\\b${tokenSymbol}\\s*\\(([^)]+)\\)`, "i");
+    const okxMatch1 = title.match(okxPattern1);
+    if (okxMatch1) {
+      return this.cleanProjectName(okxMatch1[1]);
     }
 
-    // 尝试其他常见模式
-    if (title.toLowerCase().includes(`list ${tokenSymbol.toLowerCase()} for`)) {
-      return tokenSymbol; // 如果找不到项目名，返回代币名作为项目名
+    // 反向格式：Project (TOKEN)
+    const okxPattern2 = new RegExp(`([^(]+)\\s*\\(${tokenSymbol}\\)`, "i");
+    const okxMatch2 = title.match(okxPattern2);
+    if (okxMatch2) {
+      return this.cleanProjectName(okxMatch2[1]);
     }
+
+    // 其他特殊情况处理...
 
     return null;
   }
