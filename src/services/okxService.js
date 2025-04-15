@@ -361,7 +361,7 @@ class OkxService {
           tokenSymbol = part1;
           projectName = part2;
 
-          // 检查是否更像旧格式: part1 = ProjectName, part2 = TOKEN
+          // 检查是否更像旧格式: part2是全大写/数字且较短，part1较长或包含空格/混合大小写
           // 条件：part2是全大写/数字且较短，part1较长或包含空格/混合大小写
           const part2LooksLikeToken =
             /^[A-Z0-9•]+$/.test(part2) && part2.length < 15;
@@ -436,9 +436,10 @@ class OkxService {
 
     // 模式4：处理交易对格式
     const pairRegex = /([A-Z0-9]+)\/([A-Z0-9]+)/g;
-    while ((match = pairRegex.exec(processedTitle)) !== null) {
-      const baseToken = match[1];
-      const quoteToken = match[2];
+    let pairMatch;
+    while ((pairMatch = pairRegex.exec(processedTitle)) !== null) {
+      const baseToken = pairMatch[1];
+      const quoteToken = pairMatch[2];
 
       // 基础货币通常是USDT, USDC等
       const baseIsBaseCurrency = ["USDT", "USDC", "BTC", "ETH", "BNB"].includes(
@@ -525,9 +526,9 @@ class OkxService {
 
     return (
       rawName
-        // 移除开头的常见前缀词
+        // 移除开头的常见前缀词，增加"Announcement on Listing"
         .replace(
-          /^(list|listing|add|adding|support|supporting|on|for|the|delay|delays|completed|distributing|open|introducing|pre-market futures for|pre-market for|pre-market)\s+/i,
+          /^(list|listing|add|adding|support|supporting|on|for|the|delay|delays|completed|distributing|open|introducing|pre-market futures for|pre-market for|pre-market|Announcement on Listing|OKX Announcement on Listing|OKX Announcement)\s+/i,
           ""
         )
         // 移除中间的常见连接词
