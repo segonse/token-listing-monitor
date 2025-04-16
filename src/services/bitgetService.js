@@ -18,6 +18,11 @@ class BitgetService {
       // 获取随机代理配置
       const proxyConfig = getDynamicProxyConfig();
 
+      // 修改配置中的 username，将 BR 替换为 TR
+      proxyConfig.auth.username = proxyConfig.auth.username
+        .replace("region-BR", "region-JP")
+        .replace("sessid-BR", "sessid-JP");
+
       // 创建代理隧道
       const agent = tunnel.httpsOverHttp({
         proxy: {
