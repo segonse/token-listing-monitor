@@ -262,9 +262,7 @@ class MonitorService {
                   retryCount++;
                   if (retryCount < maxRetries) {
                     console.log(
-                      `第 ${page} 页数据为空，可能是临时错误，进行第 ${
-                        retryCount + 1
-                      } 次重试...`
+                      `第 ${page} 页数据为空，可能是临时错误，进行第 ${retryCount} 次重试...`
                     );
                     const retryDelay = 5000 * retryCount;
                     await new Promise((resolve) =>
@@ -342,9 +340,7 @@ class MonitorService {
                   retryCount++;
                   if (retryCount < maxRetries) {
                     console.log(
-                      `第 ${page} 页数据为空，可能是临时错误，进行第 ${
-                        retryCount + 1
-                      } 次重试...`
+                      `第 ${page} 页数据为空，可能是临时错误，进行第 ${retryCount} 次重试...`
                     );
                     const retryDelay = 5000 * retryCount;
                     await new Promise((resolve) =>
@@ -446,9 +442,7 @@ class MonitorService {
                     retryCount++;
                     if (retryCount < maxRetries) {
                       console.log(
-                        `第 ${page} 页数据为空，可能是临时错误，进行第 ${
-                          retryCount + 1
-                        } 次重试...`
+                        `第 ${page} 页数据为空，可能是临时错误，进行第 ${retryCount} 次重试...`
                       );
                       const retryDelay = 5000 * retryCount;
                       await new Promise((resolve) =>
