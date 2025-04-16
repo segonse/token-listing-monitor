@@ -226,19 +226,83 @@ class BitgetService {
   // 获取所有类型的公告
   static async getAllAnnouncements() {
     try {
-      // 获取所有类型公告的第一页
-      const promises = [
-        this.getAnnouncements(1, this.sectionIds.spot),
-        this.getAnnouncements(1, this.sectionIds.futures),
-        this.getAnnouncements(1, this.sectionIds.margin),
-        this.getAnnouncements(1, this.sectionIds.copy),
-        this.getAnnouncements(1, this.sectionIds.strategy),
+      // 定义要获取的各个类型公告
+      const sectionTypes = [
+        { type: "spot", sectionId: this.sectionIds.spot },
+        { type: "futures", sectionId: this.sectionIds.futures },
+        { type: "margin", sectionId: this.sectionIds.margin },
+        { type: "copy", sectionId: this.sectionIds.copy },
+        { type: "strategy", sectionId: this.sectionIds.strategy },
       ];
 
-      const results = await Promise.all(promises);
+      let allAnnouncements = [];
 
-      // 合并所有结果
-      return results.flat();
+      // 逐个获取各类型的公告，并添加重试机制
+      for (const section of sectionTypes) {
+        let retryCount = 0;
+        const maxRetries = 3;
+        let success = false;
+
+        while (!success && retryCount < maxRetries) {
+          try {
+            console.log(
+              `获取Bitget ${section.type}公告...${
+                retryCount > 0 ? `(重试第${retryCount}次)` : ""
+              }`
+            );
+
+            const announcements = await this.getAnnouncements(
+              1,
+              section.sectionId
+            );
+
+            if (announcements && announcements.length > 0) {
+              allAnnouncements = [...allAnnouncements, ...announcements];
+              console.log(
+                `成功获取Bitget ${section.type}公告: ${announcements.length}条`
+              );
+              success = true;
+            } else {
+              // 如果返回空结果，也可能是临时错误
+              retryCount++;
+              if (retryCount < maxRetries) {
+                const retryDelay = 1000;
+                console.log(
+                  `${section.type}公告为空，${retryDelay / 1000}秒后重试...`
+                );
+                await new Promise((resolve) => setTimeout(resolve, retryDelay));
+              } else {
+                console.log(`${section.type}公告确认为空，继续获取其他类型`);
+                success = true; // 标记为已完成
+              }
+            }
+          } catch (error) {
+            retryCount++;
+            console.error(
+              `获取Bitget ${section.type}公告失败 (${retryCount}/${maxRetries}): ${error.message}`
+            );
+
+            if (retryCount < maxRetries) {
+              const retryDelay = 3000 * retryCount;
+              console.log(`将在${retryDelay / 1000}秒后重试...`);
+              await new Promise((resolve) => setTimeout(resolve, retryDelay));
+            } else {
+              console.error(
+                `获取Bitget ${section.type}公告最终失败，跳过该类型`
+              );
+              success = true; // 标记为已完成以继续下一个类型
+            }
+          }
+        }
+
+        // 各类型请求之间添加短暂延迟
+        if (section.type !== "strategy") {
+          // 最后一个不需要延迟
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+
+      return allAnnouncements;
     } catch (error) {
       console.error("获取Bitget所有类型公告失败:", error.message);
       return [];
