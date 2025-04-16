@@ -1,4 +1,6 @@
 const axios = require("axios");
+const tunnel = require("tunnel");
+const { getDynamicProxyConfig } = require("../utils/proxyHelper");
 
 class BitgetService {
   // 公告类型ID配置
@@ -13,6 +15,18 @@ class BitgetService {
   // 获取Bitget公告（默认获取现货公告）
   static async getAnnouncements(page = 1, sectionId = this.sectionIds.spot) {
     try {
+      // 获取随机代理配置
+      const proxyConfig = getDynamicProxyConfig();
+
+      // 创建代理隧道
+      const agent = tunnel.httpsOverHttp({
+        proxy: {
+          host: proxyConfig.host,
+          port: proxyConfig.port,
+          proxyAuth: `${proxyConfig.auth.username}:${proxyConfig.auth.password}`,
+        },
+      });
+
       const response = await axios.post(
         "https://www.bitget.com/v1/cms/helpCenter/content/section/helpContentDetail",
         {
@@ -30,6 +44,7 @@ class BitgetService {
             "User-Agent":
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
           },
+          httpsAgent: agent,
           timeout: 30000,
         }
       );
@@ -90,23 +105,23 @@ class BitgetService {
     }
 
     // 进一步细分现货公告类型
-    if (baseType === "现货") {
-      const lowerTitle = title.toLowerCase();
+    // if (baseType === "现货") {
+    //   const lowerTitle = title.toLowerCase();
 
-      if (
-        lowerTitle.includes("initial listing") ||
-        lowerTitle.includes("will list")
-      ) {
-        return "上新";
-      } else if (lowerTitle.includes("pre-market")) {
-        return "盘前";
-      } else if (
-        lowerTitle.includes("airdrop") ||
-        lowerTitle.includes("candybomb")
-      ) {
-        return "空投";
-      }
-    }
+    //   if (
+    //     lowerTitle.includes("initial listing") ||
+    //     lowerTitle.includes("will list")
+    //   ) {
+    //     return "上新";
+    //   } else if (lowerTitle.includes("pre-market")) {
+    //     return "盘前";
+    //   } else if (
+    //     lowerTitle.includes("airdrop") ||
+    //     lowerTitle.includes("candybomb")
+    //   ) {
+    //     return "空投";
+    //   }
+    // }
 
     return baseType;
   }
