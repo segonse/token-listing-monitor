@@ -416,7 +416,7 @@ class MonitorService {
           // 从高页码向低页码获取
           for (let page = config.pages; page >= 1; page--) {
             let retryCount = 0;
-            const maxRetries = 3;
+            const maxRetries = 5;
             let success = false;
 
             while (!success && retryCount < maxRetries) {

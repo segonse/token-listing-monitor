@@ -20,8 +20,8 @@ class BitgetService {
 
       // 修改配置中的 username，将 BR 替换为 TR
       proxyConfig.auth.username = proxyConfig.auth.username
-        .replace("region-BR", "region-JP")
-        .replace("sessid-BR", "sessid-JP");
+        .replace("region-BR", "region-RU")
+        .replace("sessid-BR", "sessid-RU");
 
       // 创建代理隧道
       const agent = tunnel.httpsOverHttp({
@@ -45,9 +45,10 @@ class BitgetService {
         },
         {
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/json;charset=UTF-8",
             "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            origin: "https://www.bitget.com",
           },
           httpsAgent: agent,
           timeout: 30000,
