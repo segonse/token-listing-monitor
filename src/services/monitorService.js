@@ -412,7 +412,7 @@ class MonitorService {
           // 从高页码向低页码获取
           for (let page = config.pages; page >= 1; page--) {
             let retryCount = 0;
-            const maxRetries = 5;
+            const maxRetries = 10;
             let success = false;
 
             while (!success && retryCount < maxRetries) {
@@ -437,8 +437,8 @@ class MonitorService {
 
                 // 同样对空结果进行特殊处理
                 if (!announcements || announcements.length === 0) {
-                  if (page > 1) {
-                    // 只对较新的页面执行此检查
+                  if (page > 0) {
+                    // 只对较新的页面执行此检查(bitget403率过高，例外)
                     retryCount++;
                     if (retryCount < maxRetries) {
                       console.log(
