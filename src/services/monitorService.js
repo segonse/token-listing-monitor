@@ -444,7 +444,7 @@ class MonitorService {
                       console.log(
                         `第 ${page} 页数据为空，可能是临时错误，进行第 ${retryCount} 次重试...`
                       );
-                      const retryDelay = 5000 * retryCount;
+                      const retryDelay = 1000;
                       await new Promise((resolve) =>
                         setTimeout(resolve, retryDelay)
                       );
