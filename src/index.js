@@ -82,19 +82,27 @@ const startServer = async () => {
       const [okxCount] = await db.query(
         "SELECT COUNT(*) as count FROM announcements WHERE exchange = 'OKX'"
       );
+      const [bitgetCount] = await db.query(
+        "SELECT COUNT(*) as count FROM announcements WHERE exchange = 'Bitget'"
+      );
 
       const needsHistoricalData = {
         binance: binanceCount[0].count === 0,
         okx: okxCount[0].count === 0,
+        bitget: bitgetCount[0].count === 0,
       };
 
       // 如果任何一个交易所需要历史数据，则进行获取
-      if (needsHistoricalData.binance || needsHistoricalData.okx) {
+      if (
+        needsHistoricalData.binance ||
+        needsHistoricalData.okx ||
+        needsHistoricalData.bitget
+      ) {
         console.log("首次启动，自动获取历史数据...");
         console.log(
-          `需要获取: ${needsHistoricalData.binance ? "Binance" : ""} ${
-            needsHistoricalData.okx ? "OKX" : ""
-          }`
+          `需要获取: ${needsHistoricalData.binance ? "Binance " : ""}${
+            needsHistoricalData.okx ? "OKX " : ""
+          }${needsHistoricalData.bitget ? "Bitget" : ""}`
         );
 
         setTimeout(async () => {

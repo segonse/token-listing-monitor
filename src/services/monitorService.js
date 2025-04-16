@@ -29,7 +29,7 @@ class MonitorService {
         // bybitAnnouncements,
         okxAnnouncements,
         binanceAnnouncements,
-        // bitgetAnnouncements,
+        bitgetAnnouncements,
         // kucoinAnnouncements,
         // htxAnnouncements,
         // gateAnnouncements,
@@ -38,7 +38,7 @@ class MonitorService {
         // BybitService.getAllAnnouncements(),
         OkxService.getAnnouncements(),
         BinanceService.getAnnouncements(),
-        // BitgetService.getAnnouncements(),
+        BitgetService.getAllAnnouncements(),
         // KucoinService.getAnnouncements(),
         // HtxService.getAnnouncements(),
         // GateService.getAnnouncements(),
@@ -50,7 +50,7 @@ class MonitorService {
         // ...bybitAnnouncements,
         ...okxAnnouncements,
         ...binanceAnnouncements,
-        // ...bitgetAnnouncements,
+        ...bitgetAnnouncements,
         // ...kucoinAnnouncements,
         // ...htxAnnouncements,
         // ...gateAnnouncements,
@@ -66,7 +66,7 @@ class MonitorService {
       // console.log(`- Bybit: ${bybitAnnouncements.length} 条`);
       console.log(`- OKX: ${okxAnnouncements.length} 条`);
       console.log(`- Binance: ${binanceAnnouncements.length} 条`);
-      // console.log(`- Bitget: ${bitgetAnnouncements.length} 条`);
+      console.log(`- Bitget: ${bitgetAnnouncements.length} 条`);
       // console.log(`- KuCoin: ${kucoinAnnouncements.length} 条`);
       // console.log(`- HTX: ${htxAnnouncements.length} 条`);
       // console.log(`- Gate.io: ${gateAnnouncements.length} 条`);
@@ -203,7 +203,7 @@ class MonitorService {
 
   // 历史数据获取方法（用于初始化或手动获取历史数据）
   static async fetchHistoricalAnnouncements(
-    exchangesToFetch = { binance: true, okx: true }
+    exchangesToFetch = { binance: true, okx: true, bitget: true }
   ) {
     try {
       console.log("开始获取历史公告数据...");
@@ -222,6 +222,7 @@ class MonitorService {
 
       let binanceAnnouncements = [];
       let okxAnnouncements = [];
+      let bitgetAnnouncements = [];
 
       // 获取币安历史数据
       if (exchangesToFetch.binance) {
@@ -383,11 +384,129 @@ class MonitorService {
         }
       }
 
+      // 获取Bitget历史数据
+      if (exchangesToFetch.bitget) {
+        console.log("获取Bitget历史公告数据...");
+
+        // 定义要获取的各个类型及其页数
+        const sectionConfigs = [
+          { type: "spot", sectionId: BitgetService.sectionIds.spot, pages: 33 },
+          {
+            type: "futures",
+            sectionId: BitgetService.sectionIds.futures,
+            pages: 19,
+          },
+          {
+            type: "margin",
+            sectionId: BitgetService.sectionIds.margin,
+            pages: 7,
+          },
+          { type: "copy", sectionId: BitgetService.sectionIds.copy, pages: 1 },
+          {
+            type: "strategy",
+            sectionId: BitgetService.sectionIds.strategy,
+            pages: 11,
+          },
+        ];
+
+        // 按顺序获取每种类型的公告
+        for (const config of sectionConfigs) {
+          console.log(`获取Bitget ${config.type} 公告数据...`);
+
+          // 从高页码向低页码获取
+          for (let page = config.pages; page >= 1; page--) {
+            let retryCount = 0;
+            const maxRetries = 3;
+            let success = false;
+
+            while (!success && retryCount < maxRetries) {
+              try {
+                console.log(
+                  `获取Bitget ${config.type} 历史数据 - 第 ${page} 页...${
+                    retryCount > 0 ? `(重试第${retryCount}次)` : ""
+                  }`
+                );
+
+                const announcements = await BitgetService.getAnnouncements(
+                  page,
+                  config.sectionId
+                );
+
+                // 增加日志
+                console.log(
+                  `获取到 Bitget ${config.type} 第 ${page} 页数据: ${
+                    announcements ? announcements.length : 0
+                  } 条`
+                );
+
+                // 同样对空结果进行特殊处理
+                if (!announcements || announcements.length === 0) {
+                  if (page > 1) {
+                    // 只对较新的页面执行此检查
+                    retryCount++;
+                    if (retryCount < maxRetries) {
+                      console.log(
+                        `第 ${page} 页数据为空，可能是临时错误，进行第 ${
+                          retryCount + 1
+                        } 次重试...`
+                      );
+                      const retryDelay = 5000 * retryCount;
+                      await new Promise((resolve) =>
+                        setTimeout(resolve, retryDelay)
+                      );
+                      continue;
+                    }
+                  }
+                  console.log(`第 ${page} 页确认没有数据，继续获取下一页`);
+                  success = true;
+                  continue;
+                }
+
+                bitgetAnnouncements = [
+                  ...bitgetAnnouncements,
+                  ...announcements,
+                ];
+                success = true;
+
+                // 避免请求过于频繁
+                if (page > 1) {
+                  await new Promise((resolve) => setTimeout(resolve, 2000));
+                }
+              } catch (error) {
+                retryCount++;
+                console.error(
+                  `获取Bitget ${config.type} 第${page}页失败 (${retryCount}/${maxRetries}): ${error.message}`
+                );
+
+                if (retryCount < maxRetries) {
+                  // 重试前增加延迟，避免连续失败
+                  const retryDelay = 5000 * retryCount; // 递增延迟
+                  console.log(`将在 ${retryDelay / 1000} 秒后重试...`);
+                  await new Promise((resolve) =>
+                    setTimeout(resolve, retryDelay)
+                  );
+                } else {
+                  console.error(
+                    `获取Bitget ${config.type} 第${page}页最终失败，跳过该页`
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+
       // 合并所有公告
-      const allAnnouncements = [...binanceAnnouncements, ...okxAnnouncements];
+      const allAnnouncements = [
+        ...binanceAnnouncements,
+        ...okxAnnouncements,
+        ...bitgetAnnouncements, // 添加Bitget公告
+      ];
+
       console.log(`共获取到 ${allAnnouncements.length} 条历史公告数据`);
       console.log(`- 币安: ${binanceAnnouncements.length} 条`);
       console.log(`- OKX: ${okxAnnouncements.length} 条`);
+      console.log(`- Bitget: ${bitgetAnnouncements.length} 条`);
 
       // 保存历史数据到数据库，但不发送通知
       let savedCount = 0;
