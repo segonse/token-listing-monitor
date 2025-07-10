@@ -90,12 +90,20 @@ async function getAnnouncementTypes(exchange = null) {
 }
 
 async function createSubscription(userDbId) {
-  await db.query(
-    `INSERT IGNORE INTO user_subscriptions 
-     (user_id, exchange, token_name, project_name, announcement_type)
-     VALUES (?, 'all', 'all', 'all', 'all')`,
-    [userDbId]
-  );
+  // 创建默认订阅（主要交易所的上新类型）
+  const defaultSubscriptions = [
+    { exchange: "Binance", announcement_type: "上新" },
+    { exchange: "OKX", announcement_type: "上新" },
+    { exchange: "Bitget", announcement_type: "上新" },
+  ];
+
+  for (const sub of defaultSubscriptions) {
+    await db.query(
+      `INSERT IGNORE INTO user_subscriptions (user_id, exchange, announcement_type, token_filter)
+       VALUES (?, ?, ?, NULL)`,
+      [userDbId, sub.exchange, sub.announcement_type]
+    );
+  }
   return true;
 }
 

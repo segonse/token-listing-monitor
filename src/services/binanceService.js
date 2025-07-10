@@ -1,8 +1,61 @@
 const axios = require("axios");
 const tunnel = require("tunnel");
 const { getDynamicProxyConfig } = require("../utils/proxyHelper");
+const AIAnalyzerService = require("./aiAnalyzerService");
 
 class BinanceService {
+  constructor() {
+    this.aiAnalyzer = new AIAnalyzerService();
+  }
+
+  // Binance专用的AI分析提示词
+  static getBinancePrompt(title, exchange) {
+    return `
+请分析以下Binance交易所公告标题，执行两个任务：
+
+1. 分类公告类型（从以下选择一个或多个）：
+   - 上新: 新代币上线/现货交易
+   - 盘前: 盘前交易
+   - 合约: 合约/期货相关
+   - 下架: 代币或交易对下线/退市
+   - launchpool: Binance Launchpool项目
+   - launchpad: Binance Launchpad项目
+   - 创新: 创新区上线
+   - HODLer: HODLer Airdrops
+   - Megadrop: Binance Megadrop
+   - Alpha: Binance Alpha
+   - 未分类: 其他类型
+
+2. 如果公告同时具有代币的name和symbol，才提取代币信息。如果是交易对类型（包括上线和下线）则不提取代币信息且如果不是合约等分类则归到未分类：
+   - 代币名称 (name): 项目全名
+   - 代币符号 (symbol): 代币符号
+
+公告标题: "${title}"
+交易所: ${exchange}
+
+请严格按照以下JSON格式返回结果：
+{
+  "categories": ["分类结果1", "分类结果2"],
+  "confidence": 0-1之间的小数，表示置信度,
+  "tokens": [
+    {
+      "name": "代币全名",
+      "symbol": "代币符号"
+    }
+  ],
+  "exchange": "${exchange}",
+  "analysis": "简短分析说明"
+}
+
+注意：
+- categories是数组，可以包含多个分类
+- 如果不包含新代币上线相关内容，tokens数组为空
+- 未分类类型只有在无法归类到其他类型时才使用
+- "Binance Will Add xx on Earn, Buy Crypto, Convert & Margin" 这种公告格式一般是上新类型，如果有Futures则为上新和合约类型
+- "Binance Futures Will Launch xx" 这种公告格式一般是合约类型，不会和上新同时存在
+`;
+  }
+
   // 获取Binance公告
   static async getAnnouncements(page = 1) {
     try {
@@ -42,14 +95,29 @@ class BinanceService {
         const articles = response.data.data.catalogs[0].articles || [];
         let processedAnnouncements = [];
 
+        // 使用AI分析器处理公告
+        const aiAnalyzer = new AIAnalyzerService();
+
         for (const item of articles) {
           const title = item.title;
-          const lowerTitle = title.toLowerCase();
 
-          // 提取代币信息，对所有类型都相同
-          const tokenInfoArray = this.extractTokenInfo(title);
+          // 使用AI分析公告
+          const prompt = BinanceService.getBinancePrompt(title, "Binance");
+          const aiAnalysis = await aiAnalyzer.analyzeAnnouncement(
+            title,
+            "Binance",
+            prompt
+          );
 
-          // 创建基本公告对象，类型字段后续填充
+          // 转换AI分析结果为tokenInfoArray格式
+          // AI分析结果: token.name=代币完整名称, token.symbol=代币符号
+          // 数据库字段: tokens.name=代币完整名称, tokens.symbol=代币符号
+          const tokenInfoArray = aiAnalysis.tokens.map((token) => ({
+            name: token.name, // 代币完整名称
+            symbol: token.symbol, // 代币符号
+          }));
+
+          // 创建基本公告对象
           const baseAnnouncement = {
             exchange: "Binance",
             title: item.title,
@@ -58,88 +126,21 @@ class BinanceService {
             publishTime: new Date(parseInt(item.releaseDate)),
             code: item.code,
             tokenInfoArray: tokenInfoArray,
+            aiAnalysis: aiAnalysis, // 保存AI分析结果
           };
 
-          // 识别类型列表
-          const types = [];
-
-          // 特殊情况1：如果是创新区公告，优先处理
-          if (lowerTitle.includes("innovation zone")) {
-            types.push("创新");
-          }
-
-          // 特殊情况2：如果是HODLer Airdrops公告
-          else if (lowerTitle.includes("hodler airdrops")) {
-            types.push("HODLer");
-          }
-
-          // 特殊情况3：如果是Megadrop公告
-          else if (lowerTitle.includes("megadrop")) {
-            types.push("Megadrop");
-          }
-
-          // 特殊情况4：结束盘前并上新币的公告
-          else if (
-            lowerTitle.includes("end the") &&
-            lowerTitle.includes("pre-market") &&
-            lowerTitle.includes("list")
-          ) {
-            // 这种情况只添加"上新"类型
-            types.push("上新");
-          }
-
-          // 常规类型判断
-          else {
-            // 判断是否包含盘前
-            if (lowerTitle.includes("pre-market")) {
-              types.push("盘前");
-            }
-
-            // 判断是否包含launchpool
-            if (lowerTitle.includes("launchpool")) {
-              types.push("launchpool");
-            }
-
-            // 判断是否包含launchpad
-            if (lowerTitle.includes("launchpad")) {
-              types.push("launchpad");
-            }
-
-            // 判断是否是上新公告
-            if (
-              (lowerTitle.includes("list") || lowerTitle.includes("add")) &&
-              !lowerTitle.includes("trading pair") &&
-              !lowerTitle.includes("trading pairs")
-            ) {
-              types.push("上新");
-            }
-
-            // 判断是否涉及futures
-            if (lowerTitle.includes("futures")) {
-              types.push("合约");
-            }
-
-            // 判断合约相关
-            if (
-              (lowerTitle.includes("future") ||
-                lowerTitle.includes("futures")) &&
-              (lowerTitle.includes("contract") ||
-                lowerTitle.includes("contracts")) &&
-              !types.includes("合约")
-            ) {
-              types.push("合约");
-            }
-          }
-
-          // 如果没有识别出任何类型，设为未分类
-          if (types.length === 0) {
-            types.push("未分类");
-          }
+          // 使用AI分析结果中的分类
+          const types = aiAnalysis.categories || ["未分类"];
 
           // 为每个类型创建一条公告
           for (const type of types) {
             const announcementWithType = { ...baseAnnouncement, type: type };
             processedAnnouncements.push(announcementWithType);
+          }
+
+          // 添加延迟避免AI API限制
+          if (articles.indexOf(item) < articles.length - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
           }
         }
 
@@ -151,248 +152,6 @@ class BinanceService {
       console.error("获取Binance公告失败:", error.message);
       return [];
     }
-  }
-
-  // 从标题中提取代币和项目信息，返回数组
-  static extractTokenInfo(title) {
-    // 跳过不需要处理的公告类型
-    if (
-      // 跳过合约相关公告
-      title.includes("Futures Will Launch") ||
-      title.includes("Perpetual Contract") ||
-      title.includes("Perpetual Contracts") ||
-      title.includes("Delivery Contracts") ||
-      // 跳过通知类公告
-      title.includes("Notice on New Trading") ||
-      title.includes("Notice on Trading") ||
-      title.includes("Trading Bots Services") ||
-      title.includes("Copy Trading") ||
-      title.includes("Trading Pair") ||
-      title.includes("Will Open Trading for") ||
-      title.includes("Auto-Invest Adds") ||
-      // 跳过Options相关公告
-      title.includes("Options RFQ") ||
-      // 跳过Margin相关公告
-      title.includes("Cross Margin") ||
-      title.includes("Isolated Margin") ||
-      (title.includes("Margin") &&
-        !title.includes("on Earn") &&
-        !title.includes("Convert"))
-    ) {
-      return [];
-    }
-
-    // 返回数组，可以包含多个代币信息
-    const tokens = [];
-
-    // 预处理标题，移除多种前缀词组
-    let processedTitle = title
-      // 移除公告通用前缀
-      .replace(
-        /Binance (Will|Has|Adds|Added|Announced|Will Continue to|Will End the|Will List)\s+/gi,
-        ""
-      )
-      .replace(/Introducing\s+/gi, "")
-      // 移除"Subscription for"和类似前缀
-      .replace(/Subscription\s+for\s+(the\s+)?/gi, "")
-      .replace(/Token\s+Sale\s+on/gi, "on")
-      .replace(/Is\s+Now\s+Open/gi, "")
-      // 移除项目名称中的各种前缀
-      .replace(/\b(Add|Added|List)\s+/gi, "")
-      .replace(/\d{4}-\d{2}-\d{2}/g, "") // 移除日期格式 YYYY-MM-DD
-      .replace(/\(\d{4}-\d{2}-\d{2}\)/g, "") // 移除括号中的日期
-      .replace(/\b\d{4}\b/g, "") // 仅移除独立的四位数年份，不影响代币名称
-      .replace(/\s+/g, " ") // 合并多个空格
-      .trim();
-
-    // 处理从Launchpool或HODLer Airdrops公告中提取代币信息
-    if (title.includes("Launchpool") || title.includes("HODLer Airdrops")) {
-      // 正则表达式匹配形如 "Introducing Xai (XAI) on Binance Launchpool" 的模式
-      const specialRegex =
-        /(?:Introducing|Binance Will Add|Binance Adds)\s+([A-Za-z0-9'\s\.\-&]+?)\s*\(([A-Za-z0-9]+)\)/i;
-      const specialMatch = title.match(specialRegex);
-
-      if (specialMatch) {
-        const projectName = specialMatch[1].trim();
-        const tokenSymbol = specialMatch[2].trim();
-
-        // 确保不是基础货币
-        if (
-          !["USD", "USDC", "BTC", "ETH", "BNB", "FDUSD"].includes(
-            tokenSymbol
-          ) &&
-          !tokenSymbol.endsWith("USDT")
-        ) {
-          tokens.push({
-            tokenName: tokenSymbol,
-            projectName: projectName,
-          });
-          // 提取到代币信息后直接进入后处理阶段
-          // 不再尝试其他模式，确保不会提取到错误的代币如TUSD
-        }
-      }
-
-      // 如果通过特殊模式未找到代币信息，则继续使用其他模式
-      if (tokens.length === 0) {
-        // 通用的括号提取模式
-        const regex = /([A-Za-z0-9'\s\.\-&]+?)\s*\(([A-Za-z0-9]+)\)/i;
-        const match = processedTitle.match(regex);
-        if (match) {
-          const projectName = match[1].trim();
-          const tokenSymbol = match[2].trim();
-
-          // 确保不是基础货币
-          if (
-            !["USD", "USDC", "BTC", "ETH", "BNB", "FDUSD"].includes(
-              tokenSymbol
-            ) &&
-            !tokenSymbol.endsWith("USDT")
-          ) {
-            tokens.push({
-              tokenName: tokenSymbol,
-              projectName: projectName,
-            });
-          }
-        }
-      }
-    } else {
-      // 模式1：标准格式 "Project Name (TOKEN)"，可能有多个
-      // 修改正则表达式，确保能匹配包含特殊字符的项目名
-      const regex = /([A-Za-z0-9'\s\.\-&]+?)\s*\(([A-Za-z0-9]+)\)/g;
-      let match;
-
-      // 使用处理后的标题进行匹配
-      while ((match = regex.exec(processedTitle)) !== null) {
-        const projectName = match[1].trim();
-        const tokenSymbol = match[2].trim();
-
-        // 检查代币是否是已知的合约后缀或基础货币
-        if (
-          tokenSymbol.endsWith("USDT") ||
-          ["USD", "USDC", "BTC", "ETH", "BNB", "FDUSD", "BUSD", "JPY"].includes(
-            tokenSymbol
-          )
-        ) {
-          continue;
-        }
-
-        // 过滤掉一些不应该被当作项目名的词汇
-        if (
-          !projectName.match(
-            /^(Binance|Will|on|in|to|and|by|Market|with|Add|Added|List)$/i
-          ) &&
-          tokenSymbol.length > 0
-        ) {
-          // 检查是否有重复添加
-          if (!tokens.some((t) => t.tokenName === tokenSymbol)) {
-            tokens.push({
-              tokenName: tokenSymbol,
-              projectName: projectName,
-            });
-          }
-        }
-      }
-
-      // 模式2：查找带数字前缀的代币名，例如"1000CHEEMS"
-      const alternateRegex = /([A-Za-z0-9'\s\.\-&]+?)\s*\((\d+[A-Za-z0-9]+)\)/g;
-      while ((match = alternateRegex.exec(title)) !== null) {
-        const projectName = match[1]
-          .trim()
-          .replace(
-            /^(Binance Will Add|Binance Will List|Binance Adds|Add|Added|List)\s+/gi,
-            ""
-          );
-        const tokenSymbol = match[2].trim();
-
-        // 避免添加重复代币
-        if (
-          !tokens.some((t) => t.tokenName === tokenSymbol) &&
-          tokenSymbol.length > 0
-        ) {
-          tokens.push({
-            tokenName: tokenSymbol,
-            projectName: projectName,
-          });
-        }
-      }
-
-      // 模式3：处理特殊情况 "代币1 and 代币2"
-      if (processedTitle.includes(" and ")) {
-        const parts = processedTitle.split(" and ");
-
-        // 检查每个部分是否包含代币信息
-        parts.forEach((part) => {
-          part = part.trim();
-
-          // 如果该部分不包含括号 (已经被模式1处理)，尝试提取代币信息
-          if (!part.includes("(") && part.length > 0) {
-            // 查找全大写的词作为可能的代币名，也支持数字前缀
-            const symbolMatch = part.match(/\b(\d*[A-Z][A-Z0-9]{1,9})\b/);
-            if (symbolMatch) {
-              const tokenSymbol = symbolMatch[1];
-
-              // 排除已知的非代币标识符
-              if (
-                !tokenSymbol.endsWith("USDT") &&
-                ![
-                  "USD",
-                  "USDC",
-                  "BTC",
-                  "ETH",
-                  "BNB",
-                  "FDUSD",
-                  "RFQ",
-                  "AND",
-                  "THE",
-                  "TUSD",
-                ].includes(tokenSymbol)
-              ) {
-                // 移除代币名后的其余部分可能是项目名
-                let projectName = part
-                  .replace(new RegExp("\\b" + tokenSymbol + "\\b", "g"), "")
-                  .trim();
-
-                // 删除可能存在的标点符号和前缀词
-                projectName = projectName
-                  .replace(/^[,.\s]+|[,.\s]+$/g, "")
-                  .replace(/^(Add|Added|List)\s+/i, "");
-
-                // 避免添加重复代币
-                if (
-                  !tokens.some((t) => t.tokenName === tokenSymbol) &&
-                  tokenSymbol.length > 0
-                ) {
-                  tokens.push({
-                    tokenName: tokenSymbol,
-                    projectName: projectName.length > 0 ? projectName : null,
-                  });
-                }
-              }
-            }
-          }
-        });
-      }
-    }
-
-    // 后处理：清理项目名称
-    tokens.forEach((token) => {
-      if (token.projectName) {
-        // 移除项目名中的各种前缀词
-        token.projectName = token.projectName
-          .replace(/^(and|by|with|the|Add|Added|List|Subscription for)\s+/i, "")
-          .replace(/\s+(and|by|with|the)\s+/i, " ")
-          .replace(/\s+Token\s+Sale\s+on.*$/i, "") // 移除"Token Sale on"及其后面的内容
-          .replace(/\s+Is\s+Now\s+Open.*$/i, "") // 移除"Is Now Open"及其后面的内容
-          .trim();
-
-        // 如果项目名只有一两个字符，可能不是有效的项目名
-        if (token.projectName.length < 3) {
-          token.projectName = null;
-        }
-      }
-    });
-
-    return tokens;
   }
 }
 

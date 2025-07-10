@@ -1,0 +1,22 @@
+[
+  {
+    "timestamp": "2025-07-09T07:58:52.296Z",
+    "original_title": "OKX to list RSIC•GENESIS•RUNE (RUNECOIN) for spot trading",
+    "exchange": "binance",
+    "analysis": {
+      "categories": [
+        "上新"
+      ],
+      "confidence": 0.95,
+      "tokens": [
+        {
+          "name": "RSIC•GENESIS•RUNE",
+          "symbol": "RUNECOIN"
+        }
+      ],
+      "exchange": "binance",
+      "analysis": "公告标题明确提到新代币RSIC•GENESIS•RUNE (RUNECOIN)将上线现货交易，因此分类为'上新'，并提取了代币名称和符号。"
+    },
+    "enriched_tokens": []
+  }
+]

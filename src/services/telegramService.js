@@ -17,7 +17,7 @@ class TelegramService {
           chat_id: chatId,
           text: message,
           parse_mode: "HTML",
-          disable_web_page_preview: false,
+          disable_web_page_preview: true,
         }
       );
 
@@ -47,7 +47,7 @@ class TelegramService {
           chat_id: userId,
           text: message,
           parse_mode: "HTML",
-          disable_web_page_preview: false,
+          disable_web_page_preview: true,
         }
       );
 

@@ -123,7 +123,7 @@ class WechatService {
     // }
 
     // if (announcement.projectName) {
-    //   message += `📌 项目: ${announcement.projectName}\n`;
+    //   message += `📌 符号: ${announcement.projectName}\n`;
     // }
 
     message += `📌 发布时间: ${chinaTimeString}\n`;

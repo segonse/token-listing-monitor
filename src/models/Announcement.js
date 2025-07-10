@@ -53,11 +53,13 @@ class Announcement {
         const Token = require("./Token");
 
         for (const tokenInfo of tokenInfoArray) {
-          if (tokenInfo.tokenName || tokenInfo.projectName) {
+          if (tokenInfo.name || tokenInfo.symbol) {
             // 每个代币信息都创建一条记录，并关联到当前公告
+            // tokenInfo.name -> tokens.name (代币完整名称)
+            // tokenInfo.symbol -> tokens.symbol (代币符号)
             await Token.findOrCreate(
-              tokenInfo.tokenName,
-              tokenInfo.projectName,
+              tokenInfo.name, // 代币完整名称
+              tokenInfo.symbol, // 代币符号
               announcementId
             );
           }
@@ -129,7 +131,7 @@ class Announcement {
         exchanges, // 交易所数组或"all"
         types, // 公告类型数组或"all"
         tokenName, // 可选的代币名称
-        projectName, // 可选的项目名称
+        symbol, // 可选的代币符号
         limit = 5, // 默认获取5条公告
       } = filters;
 
@@ -139,8 +141,8 @@ class Announcement {
         FROM announcements a
       `;
 
-      // 如果有代币名称或项目名称筛选，需要关联tokens表
-      if (tokenName || projectName) {
+      // 如果有代币名称或符号筛选，需要关联tokens表
+      if (tokenName || symbol) {
         query += `
           LEFT JOIN tokens t ON t.announcement_id = a.id
         `;
@@ -180,10 +182,10 @@ class Announcement {
         params.push(tokenName, `%${tokenName}%`);
       }
 
-      // 处理项目名称筛选
-      if (projectName) {
-        conditions.push(`(t.project_name = ? OR a.title LIKE ?)`);
-        params.push(projectName, `%${projectName}%`);
+      // 处理代币符号筛选
+      if (symbol) {
+        conditions.push(`(t.symbol = ? OR a.title LIKE ?)`);
+        params.push(symbol, `%${symbol}%`);
       }
 
       // 添加WHERE子句
@@ -208,8 +210,8 @@ class Announcement {
           [announcement.id]
         );
         announcement.tokenInfoArray = tokens.map((token) => ({
-          tokenName: token.name,
-          projectName: token.project_name,
+          name: token.name, // 代币完整名称
+          symbol: token.symbol, // 代币符号
         }));
       }
 

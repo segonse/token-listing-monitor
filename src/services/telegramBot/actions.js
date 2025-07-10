@@ -2,9 +2,13 @@ const { Markup } = require("telegraf");
 const db = require("../../config/database");
 const menus = require("./menus");
 const queries = require("./queries");
+const { setupSubscriptionActions } = require("./subscriptionActions");
 const formatters = require("./formatters");
 
 function setupActions(bot) {
+  // 设置订阅管理功能
+  setupSubscriptionActions(bot);
+
   // 返回主菜单
   bot.bot.action("back_to_main", async (ctx) => {
     await ctx.answerCbQuery();
@@ -89,14 +93,14 @@ function setupActions(bot) {
 
     await ctx.answerCbQuery();
 
-    // 询问是否需要按代币名称筛选
+    // 询问是否需要按代币符号/名称筛选
     return ctx.reply(
-      "您是否需要按代币名称筛选?",
+      "您是否需要按代币符号/代币名称筛选?",
       menus.getTokenFilterMenu(exchange, type)
     );
   });
 
-  // 处理代币名称筛选选择
+  // 处理代币符号/名称筛选选择
   bot.bot.action(/filter_token_(.+)_(.+)/, (ctx) => {
     const exchange = ctx.match[1];
     const type = ctx.match[2];
@@ -107,7 +111,7 @@ function setupActions(bot) {
     bot.userStates[chatId] = `waiting_token_${exchange}_${type}`;
 
     ctx.answerCbQuery();
-    return ctx.reply("请输入要筛选的代币名称或项目名称:");
+    return ctx.reply("请输入要筛选的代币符号或代币名称:");
   });
 
   // 处理直接选择结果数量（不筛选代币）
@@ -146,27 +150,27 @@ function setupActions(bot) {
       const typeParam = type === "all" ? "all" : [type];
 
       let tokenName = null;
-      let projectName = null;
+      let symbol = null;
 
-      // 检查是否有代币/项目筛选
+      // 检查是否有代币符号/名称筛选
       if (
         bot.userSelections &&
         bot.userSelections[chatId] &&
-        bot.userSelections[chatId].tokenOrProject
+        bot.userSelections[chatId].tokenOrSymbol
       ) {
-        // 这里简单处理，同时作为代币名和项目名尝试查询
-        tokenName = bot.userSelections[chatId].tokenOrProject;
-        projectName = bot.userSelections[chatId].tokenOrProject;
+        // 这里简单处理，同时作为代币符号和名称尝试查询
+        tokenName = bot.userSelections[chatId].tokenOrSymbol;
+        symbol = bot.userSelections[chatId].tokenOrSymbol;
       }
 
       // 调用API获取公告
       const Announcement = require("../../models/Announcement");
-      // console.log(exchangeParam, typeParam, tokenName, projectName, limit);
+      // console.log(exchangeParam, typeParam, tokenName, symbol, limit);
       const announcements = await Announcement.getFilteredAnnouncements({
         exchanges: exchangeParam,
         types: typeParam,
         tokenName,
-        projectName,
+        symbol,
         limit,
       });
 
@@ -182,7 +186,7 @@ function setupActions(bot) {
           const message = formatters.formatAnnouncementMessage(announcement);
           await ctx.reply(message, {
             parse_mode: "HTML",
-            disable_web_page_preview: false,
+            disable_web_page_preview: true,
           });
 
           // 避免发送过快触发Telegram限流
@@ -213,7 +217,7 @@ function handleTextInput(bot, ctx) {
   const chatId = ctx.chat.id.toString();
   const text = ctx.message.text;
 
-  // 检查是否在等待输入代币名称
+  // 检查是否在等待输入代币符号/代币名称
   if (
     bot.userStates &&
     bot.userStates[chatId] &&
@@ -223,11 +227,11 @@ function handleTextInput(bot, ctx) {
     const exchange = params[2];
     const type = params[3];
 
-    // 保存用户输入的代币/项目名称
+    // 保存用户输入的代币符号/代币名称
     if (!bot.userSelections) bot.userSelections = {};
     if (!bot.userSelections[chatId]) bot.userSelections[chatId] = {};
 
-    bot.userSelections[chatId].tokenOrProject = text;
+    bot.userSelections[chatId].tokenOrSymbol = text;
 
     // 清除状态
     delete bot.userStates[chatId];

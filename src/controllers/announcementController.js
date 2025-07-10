@@ -19,7 +19,7 @@ class AnnouncementController {
         exchanges, // 字符串"all"或交易所数组
         types, // 字符串"all"或类型数组
         tokenName, // 可选的代币名称
-        projectName, // 可选的项目名称
+        symbol, // 可选的代币符号
         limit = 5, // 默认获取5条公告
       } = req.body;
 
@@ -48,7 +48,7 @@ class AnnouncementController {
             : [exchanges],
         types: types === "all" ? "all" : Array.isArray(types) ? types : [types],
         tokenName,
-        projectName,
+        symbol,
         limit: parseInt(limit),
       };
 

@@ -1,0 +1,24 @@
+{
+  "name": "announcement-analyzer",
+  "version": "1.0.0",
+  "description": "AI-powered cryptocurrency exchange announcement analyzer",
+  "main": "announcement_analyzer.js",
+  "scripts": {
+    "start": "node announcement_analyzer.js",
+    "test": "node test_analyzer.js",
+    "interactive": "node interactive_test.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1"
+  },
+  "keywords": [
+    "cryptocurrency",
+    "announcement",
+    "ai",
+    "analysis",
+    "token"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

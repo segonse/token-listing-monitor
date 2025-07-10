@@ -5,7 +5,7 @@ const initDatabase = async () => {
   try {
     console.log("开始初始化数据库...");
 
-    // 创建公告表（保持原状，不添加token_name和project_name字段）
+    // 创建公告表（保持原状，不添加token_name和symbol字段）
     await db.query(`
         CREATE TABLE IF NOT EXISTS announcements (
           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -26,12 +26,12 @@ const initDatabase = async () => {
       CREATE TABLE IF NOT EXISTS tokens (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
-        project_name VARCHAR(255),
+        symbol VARCHAR(255),
         announcement_id INT,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE SET NULL,
-        UNIQUE KEY unique_token (name, project_name)
+        UNIQUE KEY unique_token (name, symbol)
       )
     `);
 
@@ -47,19 +47,20 @@ const initDatabase = async () => {
       )
     `);
 
-    // 创建用户订阅表
+    // 创建用户订阅表 - 支持分类订阅
     await db.query(`
       CREATE TABLE IF NOT EXISTS user_subscriptions (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
-        exchange VARCHAR(50) DEFAULT 'all',
-        token_name VARCHAR(100) DEFAULT 'all',
-        project_name VARCHAR(255) DEFAULT 'all',
-        announcement_type VARCHAR(50) DEFAULT 'all',
+        exchange VARCHAR(50) NOT NULL,
+        announcement_type VARCHAR(50) NOT NULL,
+        token_filter VARCHAR(255) NULL,
+        is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        UNIQUE KEY unique_subscription (user_id, exchange, token_name, project_name, announcement_type)
+        INDEX idx_user_active (user_id, is_active),
+        INDEX idx_exchange_type (exchange, announcement_type)
       )
     `);
 
@@ -89,14 +90,20 @@ const initDatabase = async () => {
     if (allUserResult.length > 0) {
       const allUserId = allUserResult[0].id;
 
-      // 为@all用户添加全部订阅
-      await db.query(
-        `
-        INSERT IGNORE INTO user_subscriptions (user_id, exchange, token_name, project_name, announcement_type) 
-        VALUES (?, 'all', 'all', 'all', 'all')
-      `,
-        [allUserId]
-      );
+      // 为@all用户添加默认订阅（所有交易所的上新类型）
+      const defaultSubscriptions = [
+        { exchange: "Binance", announcement_type: "上新" },
+        { exchange: "OKX", announcement_type: "上新" },
+        { exchange: "Bitget", announcement_type: "上新" },
+      ];
+
+      for (const sub of defaultSubscriptions) {
+        await db.query(
+          `INSERT IGNORE INTO user_subscriptions (user_id, exchange, announcement_type, token_filter)
+           VALUES (?, ?, ?, NULL)`,
+          [allUserId, sub.exchange, sub.announcement_type]
+        );
+      }
     }
 
     console.log("数据库初始化完成");

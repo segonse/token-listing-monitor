@@ -108,8 +108,8 @@ class MonitorService {
           );
           announcement.tokenInfoArray.forEach((token, index) => {
             console.log(
-              `  ${index + 1}. 代币: ${token.tokenName || "未知"}, 项目: ${
-                token.projectName || "未知"
+              `  ${index + 1}. 符号: ${token.symbol || "未知"}, 名称: ${
+                token.name || "未知"
               }`
             );
           });

@@ -1,16 +1,12 @@
 const db = require("../config/database");
 
 class Token {
-  static async findOrCreate(
-    tokenName,
-    projectName = null,
-    announcementId = null
-  ) {
+  static async findOrCreate(name, symbol = null, announcementId = null) {
     try {
       // 先检查是否已存在相同的代币名称
       const [existingTokens] = await db.query(
         `SELECT * FROM tokens WHERE name = ?`,
-        [tokenName]
+        [name]
       );
 
       if (existingTokens.length > 0) {
@@ -20,15 +16,15 @@ class Token {
 
       // 不存在则创建新记录
       const [result] = await db.query(
-        `INSERT INTO tokens (name, project_name, announcement_id, created_at, updated_at) 
+        `INSERT INTO tokens (name, symbol, announcement_id, created_at, updated_at)
          VALUES (?, ?, ?, NOW(), NOW())`,
-        [tokenName, projectName, announcementId]
+        [name, symbol, announcementId]
       );
 
       return {
         id: result.insertId,
-        name: tokenName,
-        project_name: projectName,
+        name: name,
+        symbol: symbol,
         announcement_id: announcementId,
       };
     } catch (error) {
