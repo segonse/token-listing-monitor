@@ -46,7 +46,16 @@ function clearUserState(chatId) {
 }
 
 // 定期清理过期状态（每10分钟执行一次）
-setInterval(cleanupExpiredStates, 10 * 60 * 1000);
+const cleanupInterval = setInterval(cleanupExpiredStates, 10 * 60 * 1000);
+
+// 程序退出时清理定时器
+process.on("SIGINT", () => {
+  clearInterval(cleanupInterval);
+});
+
+process.on("SIGTERM", () => {
+  clearInterval(cleanupInterval);
+});
 
 function setupSubscriptionActions(bot) {
   // 管理订阅主菜单
@@ -77,7 +86,7 @@ function setupSubscriptionActions(bot) {
     message += `• 代币筛选数：${stats.with_token_filter}\n\n`;
     message += "请选择操作：";
 
-    return ctx.editMessageText(message, {
+    return ctx.reply(message, {
       parse_mode: "HTML",
       reply_markup: menus.getSubscriptionMainMenu().reply_markup,
     });
@@ -287,6 +296,60 @@ function setupSubscriptionActions(bot) {
         "💡 提示：输入后会显示搜索建议供您选择",
       { parse_mode: "HTML" }
     );
+  });
+
+  // 选择代币
+  bot.bot.action(/select_token_(.+)/, async (ctx) => {
+    await ctx.answerCbQuery();
+
+    const chatId = ctx.chat.id.toString();
+    const tokenValue = ctx.match[1];
+    const selection = userSelections.get(chatId);
+
+    if (!selection) {
+      return ctx.answerCbQuery("会话已过期，请重新开始", { show_alert: true });
+    }
+
+    selection.tokenFilter = tokenValue;
+    userSelections.set(chatId, selection);
+
+    return await finalizeSubscription(ctx, chatId, selection);
+  });
+
+  // 选择最近添加的代币
+  bot.bot.action("select_recent_tokens", async (ctx) => {
+    await ctx.answerCbQuery();
+
+    const chatId = ctx.chat.id.toString();
+    const selection = userSelections.get(chatId);
+
+    if (!selection) {
+      return ctx.answerCbQuery("会话已过期，请重新开始", { show_alert: true });
+    }
+
+    const TokenSearchService = require("../tokenSearchService");
+    const recentTokens = await TokenSearchService.getRecentTokens(10);
+
+    if (recentTokens.length === 0) {
+      return ctx.editMessageText(
+        "❌ 暂无最近添加的代币\n\n请选择其他筛选方式：",
+        {
+          parse_mode: "HTML",
+          reply_markup: menus.getTokenFilterSelectionMenu().reply_markup,
+        }
+      );
+    }
+
+    return ctx.editMessageText(`🆕 <b>最近添加的代币</b>\n\n请选择一个代币：`, {
+      parse_mode: "HTML",
+      reply_markup: menus.getTokenSearchResultsMenu(
+        recentTokens.map((token) => ({
+          value: token.symbol,
+          display: token.display,
+        })),
+        "recent"
+      ).reply_markup,
+    });
   });
 
   // 查看订阅

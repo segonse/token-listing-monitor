@@ -10,11 +10,6 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 20,
   queueLimit: 0,
-  acquireTimeout: 60000, // 60秒获取连接超时
-  timeout: 60000, // 60秒查询超时
-  reconnect: true, // 自动重连
-  idleTimeout: 300000, // 5分钟空闲超时
-  maxIdle: 10, // 最大空闲连接数
 });
 
 // 监听连接池事件
@@ -32,14 +27,24 @@ pool.on("error", (err) => {
 // 优雅关闭连接池
 process.on("SIGINT", async () => {
   console.log("正在关闭数据库连接池...");
-  await pool.end();
-  console.log("数据库连接池已关闭");
+  try {
+    await pool.end();
+    console.log("数据库连接池已关闭");
+  } catch (error) {
+    console.error("关闭数据库连接池时出错:", error.message);
+  }
+  process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
   console.log("正在关闭数据库连接池...");
-  await pool.end();
-  console.log("数据库连接池已关闭");
+  try {
+    await pool.end();
+    console.log("数据库连接池已关闭");
+  } catch (error) {
+    console.error("关闭数据库连接池时出错:", error.message);
+  }
+  process.exit(0);
 });
 
 module.exports = pool;

@@ -14,7 +14,7 @@ class TokenSearchService {
       }
 
       const searchTerm = `%${query.trim()}%`;
-      
+
       // 分别搜索name和symbol，避免重复
       const [results] = await db.query(
         `(
@@ -44,10 +44,14 @@ class TokenSearchService {
           value
         LIMIT ?`,
         [
-          searchTerm, `${query.trim()}%`, limit,  // name搜索
-          searchTerm, `${query.trim()}%`, limit,  // symbol搜索
-          `${query.trim()}%`,                     // 最终排序
-          limit * 2                               // 最终限制
+          searchTerm,
+          `${query.trim()}%`,
+          limit, // name搜索
+          searchTerm,
+          `${query.trim()}%`,
+          limit, // symbol搜索
+          `${query.trim()}%`, // 最终排序
+          limit * 2, // 最终限制
         ]
       );
 
@@ -64,9 +68,10 @@ class TokenSearchService {
             type: result.type,
             name: result.name,
             symbol: result.symbol,
-            display: result.type === 'name' 
-              ? `${result.value} (名称)` 
-              : `${result.value} (符号)`
+            display:
+              result.type === "name"
+                ? `${result.value} (名称)`
+                : `${result.value} (符号)`,
           });
         }
       }
@@ -74,38 +79,6 @@ class TokenSearchService {
       return uniqueResults.slice(0, limit);
     } catch (error) {
       console.error("搜索代币失败:", error.message);
-      return [];
-    }
-  }
-
-  /**
-   * 获取热门代币（按公告数量排序）
-   * @param {number} limit - 返回结果数量限制
-   * @returns {Promise<Array>} 热门代币列表
-   */
-  static async getPopularTokens(limit = 20) {
-    try {
-      const [results] = await db.query(
-        `SELECT 
-           t.name, 
-           t.symbol, 
-           COUNT(DISTINCT t.announcement_id) as announcement_count
-         FROM tokens t
-         WHERE t.name IS NOT NULL AND t.symbol IS NOT NULL
-         GROUP BY t.name, t.symbol
-         ORDER BY announcement_count DESC, t.name
-         LIMIT ?`,
-        [limit]
-      );
-
-      return results.map(token => ({
-        name: token.name,
-        symbol: token.symbol,
-        announcementCount: token.announcement_count,
-        display: `${token.symbol} - ${token.name}`
-      }));
-    } catch (error) {
-      console.error("获取热门代币失败:", error.message);
       return [];
     }
   }
@@ -130,11 +103,11 @@ class TokenSearchService {
         [limit]
       );
 
-      return results.map(token => ({
+      return results.map((token) => ({
         name: token.name,
         symbol: token.symbol,
         createdAt: token.latest_created,
-        display: `${token.symbol} - ${token.name}`
+        display: `${token.symbol} - ${token.name}`,
       }));
     } catch (error) {
       console.error("获取最近代币失败:", error.message);
@@ -164,11 +137,11 @@ class TokenSearchService {
         [exchange, limit]
       );
 
-      return results.map(token => ({
+      return results.map((token) => ({
         name: token.name,
         symbol: token.symbol,
         announcementCount: token.announcement_count,
-        display: `${token.symbol} - ${token.name}`
+        display: `${token.symbol} - ${token.name}`,
       }));
     } catch (error) {
       console.error(`获取${exchange}代币列表失败:`, error.message);
@@ -214,10 +187,22 @@ class TokenSearchService {
          WHERE name IS NOT NULL OR symbol IS NOT NULL`
       );
 
-      return stats[0] || { unique_tokens: 0, unique_names: 0, unique_symbols: 0, total_records: 0 };
+      return (
+        stats[0] || {
+          unique_tokens: 0,
+          unique_names: 0,
+          unique_symbols: 0,
+          total_records: 0,
+        }
+      );
     } catch (error) {
       console.error("获取代币统计失败:", error.message);
-      return { unique_tokens: 0, unique_names: 0, unique_symbols: 0, total_records: 0 };
+      return {
+        unique_tokens: 0,
+        unique_names: 0,
+        unique_symbols: 0,
+        total_records: 0,
+      };
     }
   }
 }

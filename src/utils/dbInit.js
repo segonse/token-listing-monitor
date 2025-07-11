@@ -96,11 +96,24 @@ const initDatabase = async () => {
       ];
 
       for (const sub of defaultSubscriptions) {
-        await db.query(
-          `INSERT IGNORE INTO user_subscriptions (user_id, exchange, announcement_type, token_filter)
-           VALUES (?, ?, ?, NULL)`,
+        // 检查是否已存在相同订阅
+        const [existing] = await db.query(
+          `SELECT id FROM user_subscriptions
+           WHERE user_id = ? AND exchange = ? AND announcement_type = ?
+           AND token_filter IS NULL`,
           [allUserId, sub.exchange, sub.announcement_type]
         );
+
+        if (existing.length === 0) {
+          await db.query(
+            `INSERT INTO user_subscriptions (user_id, exchange, announcement_type, token_filter)
+             VALUES (?, ?, ?, NULL)`,
+            [allUserId, sub.exchange, sub.announcement_type]
+          );
+          console.log(
+            `为@all用户创建默认订阅: ${sub.exchange} - ${sub.announcement_type}`
+          );
+        }
       }
     }
 

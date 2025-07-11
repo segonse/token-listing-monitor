@@ -21,11 +21,11 @@ class TelegramBot {
     actions.setupActions(this);
 
     // 处理未知命令（文本输入处理已移至actions模块统一管理）
-    this.bot.on("text", (ctx) => {
+    this.bot.on("text", async (ctx) => {
       const text = ctx.message.text;
 
       // 所有文本输入都由actions模块统一处理
-      const handled = actions.handleTextInput(this, ctx);
+      const handled = await actions.handleTextInput(this, ctx);
 
       if (!handled) {
         // 未被处理的文本消息
@@ -54,8 +54,14 @@ class TelegramBot {
       console.log("Telegram Bot 已启动");
 
       // 优雅地处理停止信号
-      process.once("SIGINT", () => this.bot.stop("SIGINT"));
-      process.once("SIGTERM", () => this.bot.stop("SIGTERM"));
+      process.once("SIGINT", () => {
+        console.log("正在关闭Telegram Bot...");
+        this.bot.stop("SIGINT");
+      });
+      process.once("SIGTERM", () => {
+        console.log("正在关闭Telegram Bot...");
+        this.bot.stop("SIGTERM");
+      });
 
       return true;
     } catch (error) {

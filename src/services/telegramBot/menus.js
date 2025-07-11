@@ -200,7 +200,7 @@ function getAnnouncementTypeSelectionMenu(selectedTypes = []) {
 
   // 控制按钮
   buttons.push([
-    Markup.button.callback("⬅️ 返回", "select_exchanges"),
+    Markup.button.callback("⬅️ 返回", "add_subscription"),
     Markup.button.callback("➡️ 下一步", "select_token_filter"),
   ]);
 
@@ -212,7 +212,7 @@ function getTokenFilterSelectionMenu() {
   return Markup.inlineKeyboard([
     [Markup.button.callback("🌟 不筛选（订阅所有）", "no_token_filter")],
     [Markup.button.callback("🔍 输入代币名称/符号", "input_token_filter")],
-    [Markup.button.callback("📈 选择热门代币", "select_popular_tokens")],
+    [Markup.button.callback("🆕 选择最近添加的代币", "select_recent_tokens")],
     [Markup.button.callback("⬅️ 返回", "select_announcement_types")],
   ]);
 }
