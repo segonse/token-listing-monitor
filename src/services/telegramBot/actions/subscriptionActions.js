@@ -1,6 +1,7 @@
-const SubscriptionService = require("../subscriptionService");
-const menus = require("./menus");
-const queries = require("./queries");
+const SubscriptionService = require("../../subscriptionService");
+const menus = require("../menus");
+const queries = require("../queries");
+const TokenSearchService = require("../../tokenSearchService");
 
 // 用户状态管理
 const userStates = new Map();
@@ -57,40 +58,71 @@ process.on("SIGTERM", () => {
   clearInterval(cleanupInterval);
 });
 
-function setupSubscriptionActions(bot) {
-  // 管理订阅主菜单
-  bot.bot.action("manage_subscriptions", async (ctx) => {
-    await ctx.answerCbQuery();
+// 完成订阅创建
+async function finalizeSubscription(ctx, chatId, selection) {
+  const telegramChatId = ctx.chat.id.toString();
+  const userId = `tg_${telegramChatId}`;
 
-    const telegramChatId = ctx.chat.id.toString();
-    const userId = `tg_${telegramChatId}`;
+  const [users] = await require("../../../config/database").query(
+    "SELECT id FROM users WHERE user_id = ?",
+    [userId]
+  );
 
-    // 获取用户信息
-    const [users] = await require("../../config/database").query(
-      "SELECT id FROM users WHERE user_id = ?",
-      [userId]
-    );
+  if (users.length === 0) {
+    return ctx.reply("请先使用 /start 命令初始化账户");
+  }
 
-    if (users.length === 0) {
-      return ctx.reply("请先使用 /start 命令初始化账户");
+  const userDbId = users[0].id;
+
+  // 生成订阅组合
+  const subscriptions = [];
+  for (const exchange of selection.exchanges) {
+    for (const type of selection.types) {
+      subscriptions.push({
+        exchange,
+        announcementType: type,
+        tokenFilter: selection.tokenFilter,
+      });
     }
+  }
 
-    const userDbId = users[0].id;
-    const stats = await SubscriptionService.getSubscriptionStats(userDbId);
+  const success = await SubscriptionService.addBatchSubscriptions(
+    userDbId,
+    subscriptions
+  );
 
-    let message = "🔔 <b>订阅管理</b>\n\n";
-    message += `📊 当前订阅统计：\n`;
-    message += `• 总订阅数：${stats.total}\n`;
-    message += `• 交易所数：${stats.exchanges_count}\n`;
-    message += `• 公告类型数：${stats.types_count}\n`;
-    message += `• 代币筛选数：${stats.unique_token_filters}\n\n`;
-    message += "请选择操作：";
+  if (success) {
+    let message = "✅ <b>订阅添加成功！</b>\n\n";
+    message += `📊 <b>订阅详情：</b>\n`;
+    message += `• 交易所：${selection.exchanges.join(", ")}\n`;
+    message += `• 公告类型：${selection.types.join(", ")}\n`;
+    if (selection.tokenFilter) {
+      message += `• 代币筛选：${selection.tokenFilter}\n`;
+    }
+    message += `• 总计：${subscriptions.length} 个订阅\n`;
 
-    return ctx.reply(message, {
+    // 清理用户状态
+    clearUserState(chatId);
+
+    return ctx.editMessageText(message, {
       parse_mode: "HTML",
       reply_markup: menus.getSubscriptionMainMenu().reply_markup,
     });
-  });
+  } else {
+    return ctx.editMessageText(
+      "❌ <b>订阅添加失败</b>\n\n请稍后重试或联系管理员。",
+      {
+        parse_mode: "HTML",
+        reply_markup: menus.getSubscriptionMainMenu().reply_markup,
+      }
+    );
+  }
+}
+
+function setupSubscriptionActions(bot) {
+  // 设置文本输入处理的状态管理器
+  const textInputActions = require("./textInputActions");
+  textInputActions.setStateManagers(userStates, userSelections);
 
   // 添加订阅 - 选择交易所
   bot.bot.action("add_subscription", async (ctx) => {
@@ -104,7 +136,7 @@ function setupSubscriptionActions(bot) {
       "📊 <b>添加订阅 - 选择交易所</b>\n\n请选择要订阅的交易所（可多选）：",
       {
         parse_mode: "HTML",
-        reply_markup: menus.getExchangeSelectionMenu([]).reply_markup,
+        reply_markup: (await menus.getExchangeSelectionMenu([])).reply_markup,
       }
     );
   });
@@ -127,15 +159,20 @@ function setupSubscriptionActions(bot) {
       selection.exchanges.push(exchange);
     }
 
+    // 交易所选择变化时，清空公告类型选择
+    if (selection.types && selection.types.length > 0) {
+      selection.types = [];
+    }
+
     userSelections.set(chatId, selection);
     updateStateTimestamp(chatId);
 
     return ctx.editMessageReplyMarkup(
-      menus.getExchangeSelectionMenu(selection.exchanges).reply_markup
+      (await menus.getExchangeSelectionMenu(selection.exchanges)).reply_markup
     );
   });
 
-  // 切换全选交易所
+  // 全选/取消全选交易所
   bot.bot.action("toggle_all_exchanges", async (ctx) => {
     await ctx.answerCbQuery();
 
@@ -145,27 +182,27 @@ function setupSubscriptionActions(bot) {
       types: [],
       tokenFilter: null,
     };
-    const allExchanges = [
-      "Binance",
-      "OKX",
-      "Bitget",
-      "Bybit",
-      "Kucoin",
-      "HTX",
-      "Gate",
-      "XT",
-    ];
 
-    if (selection.exchanges.length === allExchanges.length) {
+    const ExchangeDataService = require("../../exchangeDataService");
+    const availableExchanges =
+      await ExchangeDataService.getAvailableExchanges();
+
+    if (selection.exchanges.length === availableExchanges.length) {
+      // 当前全选，则取消全选
       selection.exchanges = [];
     } else {
-      selection.exchanges = [...allExchanges];
+      // 当前非全选，则全选
+      selection.exchanges = [...availableExchanges];
     }
 
+    // 交易所选择变化时，清空公告类型选择
+    selection.types = [];
+
     userSelections.set(chatId, selection);
+    updateStateTimestamp(chatId);
 
     return ctx.editMessageReplyMarkup(
-      menus.getExchangeSelectionMenu(selection.exchanges).reply_markup
+      (await menus.getExchangeSelectionMenu(selection.exchanges)).reply_markup
     );
   });
 
@@ -184,7 +221,12 @@ function setupSubscriptionActions(bot) {
       "📋 <b>添加订阅 - 选择公告类型</b>\n\n请选择要订阅的公告类型（可多选）：",
       {
         parse_mode: "HTML",
-        reply_markup: menus.getAnnouncementTypeSelectionMenu([]).reply_markup,
+        reply_markup: (
+          await menus.getAnnouncementTypeSelectionMenu(
+            selection.types,
+            selection.exchanges
+          )
+        ).reply_markup,
       }
     );
   });
@@ -195,11 +237,11 @@ function setupSubscriptionActions(bot) {
 
     const chatId = ctx.chat.id.toString();
     const type = ctx.match[1];
-    const selection = userSelections.get(chatId) || {
-      exchanges: [],
-      types: [],
-      tokenFilter: null,
-    };
+    const selection = userSelections.get(chatId);
+
+    if (!selection) {
+      return ctx.answerCbQuery("会话已过期，请重新开始", { show_alert: true });
+    }
 
     if (selection.types.includes(type)) {
       selection.types = selection.types.filter((t) => t !== type);
@@ -208,45 +250,53 @@ function setupSubscriptionActions(bot) {
     }
 
     userSelections.set(chatId, selection);
+    updateStateTimestamp(chatId);
 
     return ctx.editMessageReplyMarkup(
-      menus.getAnnouncementTypeSelectionMenu(selection.types).reply_markup
+      (
+        await menus.getAnnouncementTypeSelectionMenu(
+          selection.types,
+          selection.exchanges
+        )
+      ).reply_markup
     );
   });
 
-  // 切换全选公告类型
+  // 全选/取消全选公告类型
   bot.bot.action("toggle_all_types", async (ctx) => {
     await ctx.answerCbQuery();
 
     const chatId = ctx.chat.id.toString();
-    const selection = userSelections.get(chatId) || {
-      exchanges: [],
-      types: [],
-      tokenFilter: null,
-    };
-    const allTypes = [
-      "上新",
-      "盘前",
-      "合约",
-      "下架",
-      "launchpool",
-      "launchpad",
-      "创新",
-      "HODLer",
-      "Megadrop",
-      "Alpha",
-    ];
+    const selection = userSelections.get(chatId);
 
-    if (selection.types.length === allTypes.length) {
+    if (!selection) {
+      return ctx.answerCbQuery("会话已过期，请重新开始", { show_alert: true });
+    }
+
+    const ExchangeDataService = require("../../exchangeDataService");
+    const availableTypes =
+      await ExchangeDataService.getAnnouncementTypesByExchanges(
+        selection.exchanges
+      );
+
+    if (selection.types.length === availableTypes.length) {
+      // 当前全选，则取消全选
       selection.types = [];
     } else {
-      selection.types = [...allTypes];
+      // 当前非全选，则全选
+      selection.types = [...availableTypes];
     }
 
     userSelections.set(chatId, selection);
+    updateStateTimestamp(chatId);
 
     return ctx.editMessageReplyMarkup(
-      menus.getAnnouncementTypeSelectionMenu(selection.types).reply_markup
+      (
+        await menus.getAnnouncementTypeSelectionMenu(
+          selection.types,
+          selection.exchanges
+        )
+      ).reply_markup
     );
   });
 
@@ -278,7 +328,52 @@ function setupSubscriptionActions(bot) {
 
     const chatId = ctx.chat.id.toString();
     const selection = userSelections.get(chatId);
+
+    if (!selection) {
+      return ctx.answerCbQuery("会话已过期，请重新开始", { show_alert: true });
+    }
+
     selection.tokenFilter = null;
+    userSelections.set(chatId, selection);
+
+    return await finalizeSubscription(ctx, chatId, selection);
+  });
+
+  // 选择代币筛选
+  bot.bot.action("select_token_filter", async (ctx) => {
+    await ctx.answerCbQuery();
+
+    const chatId = ctx.chat.id.toString();
+    const selection = userSelections.get(chatId);
+
+    if (!selection || selection.types.length === 0) {
+      return ctx.answerCbQuery("请先选择至少一个公告类型", {
+        show_alert: true,
+      });
+    }
+
+    return ctx.editMessageText(
+      "🔍 <b>添加订阅 - 代币筛选</b>\n\n请选择代币筛选方式：",
+      {
+        parse_mode: "HTML",
+        reply_markup: menus.getTokenFilterSelectionMenu().reply_markup,
+      }
+    );
+  });
+
+  // 不筛选代币
+  bot.bot.action("no_token_filter", async (ctx) => {
+    await ctx.answerCbQuery();
+
+    const chatId = ctx.chat.id.toString();
+    const selection = userSelections.get(chatId);
+
+    if (!selection) {
+      return ctx.answerCbQuery("会话已过期，请重新开始", { show_alert: true });
+    }
+
+    selection.tokenFilter = null;
+    userSelections.set(chatId, selection);
 
     return await finalizeSubscription(ctx, chatId, selection);
   });
@@ -349,7 +444,6 @@ function setupSubscriptionActions(bot) {
       return ctx.answerCbQuery("会话已过期，请重新开始", { show_alert: true });
     }
 
-    const TokenSearchService = require("../tokenSearchService");
     const recentTokens = await TokenSearchService.getRecentTokens(10);
 
     if (recentTokens.length === 0) {
@@ -381,7 +475,7 @@ function setupSubscriptionActions(bot) {
     const telegramChatId = ctx.chat.id.toString();
     const userId = `tg_${telegramChatId}`;
 
-    const [users] = await require("../../config/database").query(
+    const [users] = await require("../../../config/database").query(
       "SELECT id FROM users WHERE user_id = ?",
       [userId]
     );
@@ -430,7 +524,7 @@ function setupSubscriptionActions(bot) {
     const telegramChatId = ctx.chat.id.toString();
     const userId = `tg_${telegramChatId}`;
 
-    const [users] = await require("../../config/database").query(
+    const [users] = await require("../../../config/database").query(
       "SELECT id FROM users WHERE user_id = ?",
       [userId]
     );
@@ -458,7 +552,7 @@ function setupSubscriptionActions(bot) {
     const telegramChatId = ctx.chat.id.toString();
     const userId = `tg_${telegramChatId}`;
 
-    const [users] = await require("../../config/database").query(
+    const [users] = await require("../../../config/database").query(
       "SELECT id FROM users WHERE user_id = ?",
       [userId]
     );
@@ -496,7 +590,7 @@ function setupSubscriptionActions(bot) {
     const telegramChatId = ctx.chat.id.toString();
     const userId = `tg_${telegramChatId}`;
 
-    const [users] = await require("../../config/database").query(
+    const [users] = await require("../../../config/database").query(
       "SELECT id FROM users WHERE user_id = ?",
       [userId]
     );
@@ -523,68 +617,11 @@ function setupSubscriptionActions(bot) {
       );
     }
   });
-
-  // 文本输入处理已移至actions.js统一管理
-}
-
-// 完成订阅创建
-async function finalizeSubscription(ctx, chatId, selection) {
-  const telegramChatId = chatId;
-  const userId = `tg_${telegramChatId}`;
-
-  const [users] = await require("../../config/database").query(
-    "SELECT id FROM users WHERE user_id = ?",
-    [userId]
-  );
-
-  if (users.length === 0) {
-    return ctx.reply("请先使用 /start 命令初始化账户");
-  }
-
-  const userDbId = users[0].id;
-
-  // 创建订阅
-  const subscriptions = [];
-  for (const exchange of selection.exchanges) {
-    for (const type of selection.types) {
-      subscriptions.push({
-        exchange,
-        announcementType: type,
-        tokenFilter: selection.tokenFilter,
-      });
-    }
-  }
-
-  const success = await SubscriptionService.addBatchSubscriptions(
-    userDbId,
-    subscriptions
-  );
-
-  if (success) {
-    let message = "✅ <b>订阅创建成功！</b>\n\n";
-    message += `📊 已创建 ${subscriptions.length} 个订阅：\n`;
-    message += `• 交易所：${selection.exchanges.join(", ")}\n`;
-    message += `• 公告类型：${selection.types.join(", ")}\n`;
-    if (selection.tokenFilter) {
-      message += `• 代币筛选：${selection.tokenFilter}\n`;
-    }
-
-    // 清理用户状态
-    clearUserState(chatId);
-
-    return ctx.editMessageText(message, {
-      parse_mode: "HTML",
-      reply_markup: menus.getSubscriptionMainMenu().reply_markup,
-    });
-  } else {
-    return ctx.editMessageText("❌ 订阅创建失败，请稍后重试", {
-      reply_markup: menus.getSubscriptionMainMenu().reply_markup,
-    });
-  }
 }
 
 module.exports = {
   setupSubscriptionActions,
   userStates,
   userSelections,
+  clearUserState,
 };

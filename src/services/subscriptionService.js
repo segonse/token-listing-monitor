@@ -279,12 +279,12 @@ class SubscriptionService {
   static async getSubscriptionStats(userId) {
     try {
       const [stats] = await db.query(
-        `SELECT 
+        `SELECT
            COUNT(*) as total,
-           COUNT(CASE WHEN DISTINCT token_filter IS NOT NULL THEN 1 END) as with_token_filter,
+           COUNT(DISTINCT CASE WHEN token_filter IS NOT NULL THEN token_filter END) as unique_token_filters,
            COUNT(DISTINCT exchange) as exchanges_count,
            COUNT(DISTINCT announcement_type) as types_count
-         FROM user_subscriptions 
+         FROM user_subscriptions
          WHERE user_id = ? AND is_active = TRUE`,
         [userId]
       );
@@ -292,7 +292,7 @@ class SubscriptionService {
       return (
         stats[0] || {
           total: 0,
-          with_token_filter: 0,
+          unique_token_filters: 0,
           exchanges_count: 0,
           types_count: 0,
         }
@@ -301,7 +301,7 @@ class SubscriptionService {
       console.error("获取订阅统计失败:", error.message);
       return {
         total: 0,
-        with_token_filter: 0,
+        unique_token_filters: 0,
         exchanges_count: 0,
         types_count: 0,
       };

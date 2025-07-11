@@ -1,7 +1,7 @@
 const { Telegraf } = require("telegraf");
 require("dotenv").config();
 const commands = require("./commands");
-const actions = require("./actions");
+const { setupAllActions, handleTextInput } = require("./actions");
 
 class TelegramBot {
   constructor() {
@@ -18,14 +18,14 @@ class TelegramBot {
 
     // 初始化命令和动作
     commands.setupCommands(this);
-    actions.setupActions(this);
+    setupAllActions(this);
 
     // 处理未知命令（文本输入处理已移至actions模块统一管理）
     this.bot.on("text", async (ctx) => {
       const text = ctx.message.text;
 
       // 所有文本输入都由actions模块统一处理
-      const handled = await actions.handleTextInput(this, ctx);
+      const handled = await handleTextInput(this, ctx);
 
       if (!handled) {
         // 未被处理的文本消息
