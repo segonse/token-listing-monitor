@@ -2,8 +2,13 @@ const { Markup } = require("telegraf");
 const db = require("../../config/database");
 const menus = require("./menus");
 const queries = require("./queries");
-const { setupSubscriptionActions } = require("./subscriptionActions");
+const {
+  setupSubscriptionActions,
+  userStates,
+  userSelections,
+} = require("./subscriptionActions");
 const formatters = require("./formatters");
+const TokenSearchService = require("../tokenSearchService");
 
 function setupActions(bot) {
   // 设置订阅管理功能
@@ -125,26 +130,34 @@ function setupActions(bot) {
 
   // 执行查询
   bot.bot.action(/execute_query_(.+)_(.+)_(\d+)/, async (ctx) => {
-    const fullMatch = ctx.match[0];
-    // 直接从存储的用户选择中获取交易所和类型
     const chatId = ctx.chat.id.toString();
-    let exchange, type;
-
-    if (bot.userSelections && bot.userSelections[chatId]) {
-      exchange = bot.userSelections[chatId].exchange;
-      type = bot.userSelections[chatId].type;
-    } else {
-      // 如果没有存储，则从回调数据中解析（兼容旧逻辑）
-      exchange = ctx.match[1];
-      type = ctx.match[2];
-    }
-
-    const limit = parseInt(ctx.match[3]);
-
-    await ctx.answerCbQuery();
-    await ctx.reply("正在查询，请稍候...");
 
     try {
+      // 优先从存储的用户选择中获取参数
+      let exchange,
+        type,
+        tokenOrSymbol = null;
+
+      if (bot.userSelections && bot.userSelections[chatId]) {
+        exchange = bot.userSelections[chatId].exchange;
+        type = bot.userSelections[chatId].type;
+        tokenOrSymbol = bot.userSelections[chatId].tokenOrSymbol;
+      } else {
+        // 如果没有存储，则从回调数据中解析
+        exchange = ctx.match[1];
+        type = ctx.match[2];
+      }
+
+      const limit = parseInt(ctx.match[3]);
+
+      // 验证参数
+      if (!exchange || !type || !limit) {
+        throw new Error("查询参数不完整");
+      }
+
+      await ctx.answerCbQuery();
+      await ctx.reply("正在查询，请稍候...");
+
       // 准备查询参数
       const exchangeParam = exchange === "all_exchanges" ? "all" : [exchange];
       const typeParam = type === "all" ? "all" : [type];
@@ -153,19 +166,14 @@ function setupActions(bot) {
       let symbol = null;
 
       // 检查是否有代币符号/名称筛选
-      if (
-        bot.userSelections &&
-        bot.userSelections[chatId] &&
-        bot.userSelections[chatId].tokenOrSymbol
-      ) {
-        // 这里简单处理，同时作为代币符号和名称尝试查询
-        tokenName = bot.userSelections[chatId].tokenOrSymbol;
-        symbol = bot.userSelections[chatId].tokenOrSymbol;
+      if (tokenOrSymbol) {
+        // 同时作为代币符号和名称尝试查询
+        tokenName = tokenOrSymbol;
+        symbol = tokenOrSymbol;
       }
 
       // 调用API获取公告
       const Announcement = require("../../models/Announcement");
-      // console.log(exchangeParam, typeParam, tokenName, symbol, limit);
       const announcements = await Announcement.getFilteredAnnouncements({
         exchanges: exchangeParam,
         types: typeParam,
@@ -213,11 +221,42 @@ function setupActions(bot) {
 }
 
 // 处理文本输入
-function handleTextInput(bot, ctx) {
+async function handleTextInput(bot, ctx) {
   const chatId = ctx.chat.id.toString();
   const text = ctx.message.text;
 
-  // 检查是否在等待输入代币符号/代币名称
+  // 检查订阅系统的文本输入处理
+  const subscriptionState = userStates.get(chatId);
+  if (subscriptionState === "waiting_token_input") {
+    const query = text.trim();
+
+    if (query.length < 1) {
+      return ctx.reply("请输入至少1个字符");
+    }
+
+    const searchResults = await TokenSearchService.searchTokens(query, 10);
+
+    if (searchResults.length === 0) {
+      await ctx.reply(
+        `❌ 未找到匹配 "${query}" 的代币\n\n您可以直接使用此输入作为筛选条件，或重新输入其他关键词。`,
+        {
+          reply_markup: menus.getTokenSearchResultsMenu([], query).reply_markup,
+        }
+      );
+      return true;
+    }
+
+    await ctx.reply(
+      `🔍 找到 ${searchResults.length} 个匹配 "${query}" 的代币：\n\n请选择一个：`,
+      {
+        reply_markup: menus.getTokenSearchResultsMenu(searchResults, query)
+          .reply_markup,
+      }
+    );
+    return true;
+  }
+
+  // 检查是否在等待输入代币符号/代币名称（历史查询功能）
   if (
     bot.userStates &&
     bot.userStates[chatId] &&
@@ -237,7 +276,8 @@ function handleTextInput(bot, ctx) {
     delete bot.userStates[chatId];
 
     // 继续询问结果数量
-    return ctx.reply(`您要查看多少条结果?`, menus.getLimitMenu(exchange, type));
+    await ctx.reply(`您要查看多少条结果?`, menus.getLimitMenu(exchange, type));
+    return true;
   }
 
   return false; // 不是我们处理的文本输入

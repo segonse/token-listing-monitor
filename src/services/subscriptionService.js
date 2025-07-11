@@ -29,7 +29,12 @@ class SubscriptionService {
    * @param {string|null} tokenFilter - 代币筛选（可选）
    * @returns {Promise<boolean>} 是否成功
    */
-  static async addSubscription(userId, exchange, announcementType, tokenFilter = null) {
+  static async addSubscription(
+    userId,
+    exchange,
+    announcementType,
+    tokenFilter = null
+  ) {
     try {
       // 检查是否已存在相同订阅
       const [existing] = await db.query(
@@ -83,20 +88,62 @@ class SubscriptionService {
   }
 
   /**
-   * 批量添加订阅
+   * 批量添加订阅（使用事务保护）
    * @param {number} userId - 用户数据库ID
    * @param {Array} subscriptions - 订阅数组 [{exchange, announcementType, tokenFilter}]
    * @returns {Promise<boolean>} 是否成功
    */
   static async addBatchSubscriptions(userId, subscriptions) {
+    const connection = await db.getConnection();
+
     try {
+      await connection.beginTransaction();
+
+      let successCount = 0;
+
       for (const sub of subscriptions) {
-        await this.addSubscription(userId, sub.exchange, sub.announcementType, sub.tokenFilter);
+        // 检查是否已存在相同订阅
+        const [existing] = await connection.query(
+          `SELECT id FROM user_subscriptions
+           WHERE user_id = ? AND exchange = ? AND announcement_type = ?
+           AND (token_filter = ? OR (token_filter IS NULL AND ? IS NULL))`,
+          [
+            userId,
+            sub.exchange,
+            sub.announcementType,
+            sub.tokenFilter,
+            sub.tokenFilter,
+          ]
+        );
+
+        if (existing.length > 0) {
+          // 如果存在但被禁用，则重新激活
+          await connection.query(
+            `UPDATE user_subscriptions SET is_active = TRUE, updated_at = NOW()
+             WHERE id = ?`,
+            [existing[0].id]
+          );
+        } else {
+          // 创建新订阅
+          await connection.query(
+            `INSERT INTO user_subscriptions (user_id, exchange, announcement_type, token_filter)
+             VALUES (?, ?, ?, ?)`,
+            [userId, sub.exchange, sub.announcementType, sub.tokenFilter]
+          );
+        }
+
+        successCount++;
       }
+
+      await connection.commit();
+      console.log(`成功批量添加 ${successCount} 个订阅`);
       return true;
     } catch (error) {
+      await connection.rollback();
       console.error("批量添加订阅失败:", error.message);
       return false;
+    } finally {
+      connection.release();
     }
   }
 
@@ -138,28 +185,44 @@ class SubscriptionService {
 
       for (const sub of subscriptions) {
         // 检查交易所匹配
-        if (sub.exchange !== 'all' && sub.exchange !== announcement.exchange) {
+        if (sub.exchange !== "all" && sub.exchange !== announcement.exchange) {
           continue;
         }
 
         // 检查公告类型匹配
-        if (sub.announcement_type !== 'all' && !announcement.type.includes(sub.announcement_type)) {
+        if (
+          sub.announcement_type !== "all" &&
+          !announcement.type.includes(sub.announcement_type)
+        ) {
           continue;
         }
 
         // 检查代币筛选
         if (sub.token_filter) {
           // 检查标题中是否包含代币筛选条件
-          if (announcement.title.toLowerCase().includes(sub.token_filter.toLowerCase())) {
+          if (
+            announcement.title
+              .toLowerCase()
+              .includes(sub.token_filter.toLowerCase())
+          ) {
             return true;
           }
 
           // 检查关联的代币信息
-          if (announcement.tokenInfoArray && announcement.tokenInfoArray.length > 0) {
+          if (
+            announcement.tokenInfoArray &&
+            announcement.tokenInfoArray.length > 0
+          ) {
             for (const token of announcement.tokenInfoArray) {
               if (
-                (token.name && token.name.toLowerCase().includes(sub.token_filter.toLowerCase())) ||
-                (token.symbol && token.symbol.toLowerCase().includes(sub.token_filter.toLowerCase()))
+                (token.name &&
+                  token.name
+                    .toLowerCase()
+                    .includes(sub.token_filter.toLowerCase())) ||
+                (token.symbol &&
+                  token.symbol
+                    .toLowerCase()
+                    .includes(sub.token_filter.toLowerCase()))
               ) {
                 return true;
               }
@@ -183,7 +246,7 @@ class SubscriptionService {
    * @returns {Array} 交易所列表
    */
   static getSupportedExchanges() {
-    return ['Binance', 'OKX', 'Bitget', 'Bybit', 'Kucoin', 'HTX', 'Gate', 'XT'];
+    return ["Binance", "OKX", "Bitget", "Bybit", "Kucoin", "HTX", "Gate", "XT"];
   }
 
   /**
@@ -192,8 +255,19 @@ class SubscriptionService {
    */
   static getSupportedAnnouncementTypes() {
     return [
-      '上新', '盘前', '合约', '下架', 'launchpool', 'launchpad', 
-      '创新', 'HODLer', 'Megadrop', 'Alpha', '活动', '空投', '维护'
+      "上新",
+      "盘前",
+      "合约",
+      "下架",
+      "launchpool",
+      "launchpad",
+      "创新",
+      "HODLer",
+      "Megadrop",
+      "Alpha",
+      "活动",
+      "空投",
+      "维护",
     ];
   }
 
@@ -215,10 +289,22 @@ class SubscriptionService {
         [userId]
       );
 
-      return stats[0] || { total: 0, with_token_filter: 0, exchanges_count: 0, types_count: 0 };
+      return (
+        stats[0] || {
+          total: 0,
+          with_token_filter: 0,
+          exchanges_count: 0,
+          types_count: 0,
+        }
+      );
     } catch (error) {
       console.error("获取订阅统计失败:", error.message);
-      return { total: 0, with_token_filter: 0, exchanges_count: 0, types_count: 0 };
+      return {
+        total: 0,
+        with_token_filter: 0,
+        exchanges_count: 0,
+        types_count: 0,
+      };
     }
   }
 }

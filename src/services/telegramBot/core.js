@@ -20,27 +20,25 @@ class TelegramBot {
     commands.setupCommands(this);
     actions.setupActions(this);
 
-    // 处理未知命令
+    // 处理未知命令（文本输入处理已移至actions模块统一管理）
     this.bot.on("text", (ctx) => {
       const text = ctx.message.text;
-      const chatId = ctx.chat.id.toString();
 
-      // 检查是否是等待输入模式
-      if (this.userStates && this.userStates[chatId]) {
-        // 这部分由actions模块处理
-        return actions.handleTextInput(this, ctx);
-      }
+      // 所有文本输入都由actions模块统一处理
+      const handled = actions.handleTextInput(this, ctx);
 
-      // 未知命令或文本消息
-      if (text.startsWith("/")) {
-        // 未知命令
-        ctx.reply("未识别的命令。发送 /help 获取可用命令列表。");
-      } else {
-        // 普通文本消息
-        ctx.reply(
-          "您好！请使用菜单按钮或发送 /help 查看可用命令。",
-          commands.getMainMenu()
-        );
+      if (!handled) {
+        // 未被处理的文本消息
+        if (text.startsWith("/")) {
+          // 未知命令
+          ctx.reply("未识别的命令。发送 /help 获取可用命令列表。");
+        } else {
+          // 普通文本消息
+          ctx.reply(
+            "您好！请使用菜单按钮或发送 /help 查看可用命令。",
+            commands.getMainMenu()
+          );
+        }
       }
     });
   }
