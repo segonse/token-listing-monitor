@@ -70,7 +70,6 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`服务器已启动，监听端口: ${PORT}`);
       console.log(`API可通过 http://localhost:${PORT}/api 访问`);
-      console.log(`Telegram Bot 已启动`);
     });
 
     // 首次启动时检查是否需要获取历史数据

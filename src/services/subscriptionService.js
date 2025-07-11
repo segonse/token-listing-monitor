@@ -281,7 +281,7 @@ class SubscriptionService {
       const [stats] = await db.query(
         `SELECT 
            COUNT(*) as total,
-           COUNT(CASE WHEN token_filter IS NOT NULL THEN 1 END) as with_token_filter,
+           COUNT(CASE WHEN DISTINCT token_filter IS NOT NULL THEN 1 END) as with_token_filter,
            COUNT(DISTINCT exchange) as exchanges_count,
            COUNT(DISTINCT announcement_type) as types_count
          FROM user_subscriptions 

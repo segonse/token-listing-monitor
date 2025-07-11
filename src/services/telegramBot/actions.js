@@ -236,6 +236,9 @@ async function handleTextInput(bot, ctx) {
 
     const searchResults = await TokenSearchService.searchTokens(query, 10);
 
+    // 搜索完成后清除状态，避免后续文本输入被误处理
+    userStates.delete(chatId);
+
     if (searchResults.length === 0) {
       await ctx.reply(
         `❌ 未找到匹配 "${query}" 的代币\n\n您可以直接使用此输入作为筛选条件，或重新输入其他关键词。`,

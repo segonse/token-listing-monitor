@@ -313,6 +313,28 @@ function setupSubscriptionActions(bot) {
     selection.tokenFilter = tokenValue;
     userSelections.set(chatId, selection);
 
+    // 清除状态并完成订阅
+    clearUserState(chatId);
+    return await finalizeSubscription(ctx, chatId, selection);
+  });
+
+  // 直接使用输入值
+  bot.bot.action(/use_input_(.+)/, async (ctx) => {
+    await ctx.answerCbQuery();
+
+    const chatId = ctx.chat.id.toString();
+    const inputValue = ctx.match[1];
+    const selection = userSelections.get(chatId);
+
+    if (!selection) {
+      return ctx.answerCbQuery("会话已过期，请重新开始", { show_alert: true });
+    }
+
+    selection.tokenFilter = inputValue;
+    userSelections.set(chatId, selection);
+
+    // 清除状态并完成订阅
+    clearUserState(chatId);
     return await finalizeSubscription(ctx, chatId, selection);
   });
 
@@ -374,7 +396,7 @@ function setupSubscriptionActions(bot) {
     );
 
     if (subscriptions.length === 0) {
-      return ctx.editMessageText(
+      return ctx.reply(
         "📋 <b>我的订阅</b>\n\n❌ 您还没有任何订阅\n\n点击下方按钮添加订阅：",
         {
           parse_mode: "HTML",
@@ -392,10 +414,114 @@ function setupSubscriptionActions(bot) {
       message += "\n";
     });
 
-    return ctx.editMessageText(message, {
+    // 添加时间戳确保内容不同，避免重复点击报错
+    message += `\n🕐 更新时间: ${new Date().toLocaleTimeString()}`;
+
+    return ctx.reply(message, {
       parse_mode: "HTML",
       reply_markup: menus.getSubscriptionMainMenu().reply_markup,
     });
+  });
+
+  // 删除订阅
+  bot.bot.action("delete_subscription", async (ctx) => {
+    await ctx.answerCbQuery();
+
+    const telegramChatId = ctx.chat.id.toString();
+    const userId = `tg_${telegramChatId}`;
+
+    const [users] = await require("../../config/database").query(
+      "SELECT id FROM users WHERE user_id = ?",
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return ctx.reply("请先使用 /start 命令初始化账户");
+    }
+
+    const userDbId = users[0].id;
+    const subscriptions = await SubscriptionService.getUserSubscriptions(
+      userDbId
+    );
+
+    return ctx.reply("🗑️ <b>删除订阅</b>\n\n请选择要删除的订阅：", {
+      parse_mode: "HTML",
+      reply_markup: menus.getDeleteSubscriptionMenu(subscriptions).reply_markup,
+    });
+  });
+
+  // 删除单个订阅
+  bot.bot.action(/delete_sub_(\d+)/, async (ctx) => {
+    await ctx.answerCbQuery();
+
+    const subscriptionId = parseInt(ctx.match[1]);
+    const telegramChatId = ctx.chat.id.toString();
+    const userId = `tg_${telegramChatId}`;
+
+    const [users] = await require("../../config/database").query(
+      "SELECT id FROM users WHERE user_id = ?",
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return ctx.reply("请先使用 /start 命令初始化账户");
+    }
+
+    const userDbId = users[0].id;
+    const success = await SubscriptionService.removeSubscription(
+      userDbId,
+      subscriptionId
+    );
+
+    if (success) {
+      return ctx.editMessageText("✅ <b>删除成功</b>\n\n订阅已成功删除！", {
+        parse_mode: "HTML",
+        reply_markup: menus.getSubscriptionMainMenu().reply_markup,
+      });
+    } else {
+      return ctx.editMessageText(
+        "❌ <b>删除失败</b>\n\n删除订阅时出现错误，请稍后重试。",
+        {
+          parse_mode: "HTML",
+          reply_markup: menus.getSubscriptionMainMenu().reply_markup,
+        }
+      );
+    }
+  });
+
+  // 删除所有订阅
+  bot.bot.action("delete_all_subscriptions", async (ctx) => {
+    await ctx.answerCbQuery();
+
+    const telegramChatId = ctx.chat.id.toString();
+    const userId = `tg_${telegramChatId}`;
+
+    const [users] = await require("../../config/database").query(
+      "SELECT id FROM users WHERE user_id = ?",
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return ctx.reply("请先使用 /start 命令初始化账户");
+    }
+
+    const userDbId = users[0].id;
+    const success = await SubscriptionService.clearUserSubscriptions(userDbId);
+
+    if (success) {
+      return ctx.editMessageText("✅ <b>删除成功</b>\n\n所有订阅已成功删除！", {
+        parse_mode: "HTML",
+        reply_markup: menus.getSubscriptionMainMenu().reply_markup,
+      });
+    } else {
+      return ctx.editMessageText(
+        "❌ <b>删除失败</b>\n\n删除订阅时出现错误，请稍后重试。",
+        {
+          parse_mode: "HTML",
+          reply_markup: menus.getSubscriptionMainMenu().reply_markup,
+        }
+      );
+    }
   });
 
   // 文本输入处理已移至actions.js统一管理

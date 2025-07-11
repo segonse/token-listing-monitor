@@ -5,7 +5,6 @@ function getMainMenu() {
   return Markup.inlineKeyboard([
     [Markup.button.callback("🔔 管理订阅", "manage_subscriptions")],
     [Markup.button.callback("🔍 查询历史公告", "check_history_announcements")],
-    [Markup.button.callback("📈 查看系统状态", "check_system_status")],
   ]);
 }
 
@@ -104,7 +103,6 @@ function getSubscriptionMainMenu() {
     [Markup.button.callback("➕ 添加订阅", "add_subscription")],
     [Markup.button.callback("📋 查看订阅", "view_subscriptions")],
     [Markup.button.callback("🗑️ 删除订阅", "delete_subscription")],
-    [Markup.button.callback("🔄 快速订阅", "quick_subscribe")],
     [Markup.button.callback("🏠 返回主菜单", "back_to_main")],
   ]);
 }
@@ -222,7 +220,9 @@ function getTokenSearchResultsMenu(searchResults, query) {
   const buttons = [];
 
   if (searchResults.length === 0) {
-    buttons.push([Markup.button.callback("❌ 未找到匹配的代币", "no_action")]);
+    buttons.push([
+      Markup.button.callback("✅ 直接使用输入值", `use_input_${query}`),
+    ]);
   } else {
     // 显示搜索结果（最多10个）
     searchResults.slice(0, 10).forEach((token) => {
@@ -235,10 +235,48 @@ function getTokenSearchResultsMenu(searchResults, query) {
     });
   }
 
+  // 添加更多选项
   buttons.push([
     Markup.button.callback("🔍 重新搜索", "input_token_filter"),
-    Markup.button.callback("⬅️ 返回", "select_token_filter"),
+    Markup.button.callback("🚫 不筛选代币", "no_token_filter"),
   ]);
+
+  buttons.push([
+    Markup.button.callback("⬅️ 返回上一步", "select_token_filter"),
+  ]);
+
+  return Markup.inlineKeyboard(buttons);
+}
+
+// 删除订阅菜单
+function getDeleteSubscriptionMenu(subscriptions) {
+  const buttons = [];
+
+  if (subscriptions.length === 0) {
+    buttons.push([Markup.button.callback("❌ 没有可删除的订阅", "no_action")]);
+  } else {
+    // 显示订阅列表供选择删除
+    subscriptions.forEach((sub, index) => {
+      const displayText = `${index + 1}. ${sub.exchange} - ${
+        sub.announcement_type
+      }${sub.token_filter ? ` (${sub.token_filter})` : ""}`;
+      buttons.push([
+        Markup.button.callback(
+          displayText.length > 30
+            ? displayText.substring(0, 30) + "..."
+            : displayText,
+          `delete_sub_${sub.id}`
+        ),
+      ]);
+    });
+
+    // 添加批量删除选项
+    buttons.push([
+      Markup.button.callback("🗑️ 删除所有订阅", "delete_all_subscriptions"),
+    ]);
+  }
+
+  buttons.push([Markup.button.callback("⬅️ 返回", "manage_subscriptions")]);
 
   return Markup.inlineKeyboard(buttons);
 }
@@ -256,4 +294,5 @@ module.exports = {
   getAnnouncementTypeSelectionMenu,
   getTokenFilterSelectionMenu,
   getTokenSearchResultsMenu,
+  getDeleteSubscriptionMenu,
 };
