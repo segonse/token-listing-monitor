@@ -1,7 +1,7 @@
 const { Telegraf } = require("telegraf");
 require("dotenv").config();
 const commands = require("./commands");
-const { setupAllActions, handleTextInput } = require("./actions");
+const { setupAllActions, handleTextInput } = require("./actions/index");
 
 class TelegramBot {
   constructor() {

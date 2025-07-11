@@ -1,6 +1,5 @@
 const SubscriptionService = require("../../subscriptionService");
 const menus = require("../menus");
-const queries = require("../queries");
 const TokenSearchService = require("../../tokenSearchService");
 
 // 用户状态管理
