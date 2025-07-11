@@ -77,7 +77,7 @@ const initDatabase = async () => {
       )
     `);
 
-    // 插入默认的@all用户
+    // 插入默认的@all用户（用于微信推送）
     await db.query(`
       INSERT IGNORE INTO users (user_id) VALUES ('@all')
     `);
@@ -90,11 +90,9 @@ const initDatabase = async () => {
     if (allUserResult.length > 0) {
       const allUserId = allUserResult[0].id;
 
-      // 为@all用户添加默认订阅（所有交易所的上新类型）
+      // 为@all用户添加默认订阅（Binance交易所的所有类型，除未分类）
       const defaultSubscriptions = [
-        { exchange: "Binance", announcement_type: "上新" },
-        { exchange: "OKX", announcement_type: "上新" },
-        { exchange: "Bitget", announcement_type: "上新" },
+        { exchange: "Binance", announcement_type: "all" },
       ];
 
       for (const sub of defaultSubscriptions) {
