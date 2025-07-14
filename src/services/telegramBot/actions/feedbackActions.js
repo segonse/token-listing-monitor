@@ -84,7 +84,7 @@ function setupFeedbackActions(bot) {
 
     return ctx.reply(
       "🌐 <b>Web管理界面</b>\n\n" +
-        `请在浏览器中访问：\n<code>${webUrl}</code>\n\n` +
+        `请在浏览器中访问：\n<a href="${webUrl}">${webUrl}</a>\n\n` +
         "🔑 <b>认证信息：</b>\n" +
         "• 访问令牌：<code>admin1234gsq</code>\n\n" +
         "💡 <b>使用说明：</b>\n" +
