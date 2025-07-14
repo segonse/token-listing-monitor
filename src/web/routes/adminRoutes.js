@@ -18,53 +18,191 @@ const authMiddleware = (req, res, next) => {
   next();
 };
 
-// HTML页面的身份验证中间件（更宽松）
+// HTML页面的身份验证中间件（检查localStorage）
 const htmlAuthMiddleware = (req, res, next) => {
-  // 检查查询参数中的token
-  const token = req.query.token;
-  const auth = req.headers.authorization;
-
-  if (token === "admin1234gsq" || (auth && auth === "Bearer admin1234gsq")) {
-    next();
-  } else {
-    // 返回简单的认证页面
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>管理员认证</title>
-        <meta charset="UTF-8">
-        <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-          .auth-form { max-width: 400px; margin: 0 auto; }
-          input { padding: 10px; margin: 10px; width: 200px; }
-          button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
-        </style>
-      </head>
-      <body>
+  // 直接返回带认证的HTML页面
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>管理员认证</title>
+      <meta charset="UTF-8">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          margin: 0;
+          padding: 0;
+          background: #f5f5f5;
+        }
+        .auth-container {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 100vh;
+        }
+        .auth-form {
+          background: white;
+          padding: 40px;
+          border-radius: 8px;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+          max-width: 400px;
+          width: 100%;
+          text-align: center;
+        }
+        .auth-form h2 {
+          color: #2c3e50;
+          margin-bottom: 20px;
+        }
+        .auth-form input {
+          width: 100%;
+          padding: 12px;
+          margin: 10px 0;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          font-size: 16px;
+          box-sizing: border-box;
+        }
+        .auth-form button {
+          width: 100%;
+          padding: 12px;
+          background: #3498db;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          font-size: 16px;
+          cursor: pointer;
+          margin-top: 10px;
+        }
+        .auth-form button:hover {
+          background: #2980b9;
+        }
+        .error {
+          color: #e74c3c;
+          margin-top: 10px;
+          display: none;
+        }
+        .loading {
+          display: none;
+          color: #7f8c8d;
+        }
+        #main-content {
+          display: none;
+        }
+      </style>
+    </head>
+    <body>
+      <div id="auth-page" class="auth-container">
         <div class="auth-form">
           <h2>🔐 管理员认证</h2>
           <p>请输入访问令牌：</p>
-          <input type="password" id="token" placeholder="输入令牌">
-          <br>
-          <button onclick="authenticate()">访问</button>
+          <input type="password" id="token" placeholder="输入令牌" onkeypress="handleKeyPress(event)">
+          <button onclick="authenticate()">登录</button>
+          <div id="loading" class="loading">正在验证...</div>
+          <div id="error" class="error">令牌无效，请重试</div>
         </div>
-        <script>
-          function authenticate() {
-            const token = document.getElementById('token').value;
-            if (token) {
-              window.location.href = '/admin/feedback?token=' + token;
-            }
+      </div>
+
+      <div id="main-content">
+        <!-- 这里将加载实际的管理界面 -->
+      </div>
+
+      <script>
+        // 检查是否已有有效token
+        function checkExistingAuth() {
+          const token = localStorage.getItem('adminToken');
+          if (token) {
+            // 验证token有效性
+            fetch('/admin/api/stats', {
+              headers: {
+                'Authorization': 'Bearer ' + token
+              }
+            })
+            .then(response => {
+              if (response.ok) {
+                loadMainContent();
+              } else {
+                localStorage.removeItem('adminToken');
+                showAuthForm();
+              }
+            })
+            .catch(() => {
+              localStorage.removeItem('adminToken');
+              showAuthForm();
+            });
+          } else {
+            showAuthForm();
           }
-        </script>
-      </body>
-      </html>
-    `);
-  }
+        }
+
+        function showAuthForm() {
+          document.getElementById('auth-page').style.display = 'flex';
+          document.getElementById('main-content').style.display = 'none';
+        }
+
+        function loadMainContent() {
+          document.getElementById('auth-page').style.display = 'none';
+          document.getElementById('main-content').style.display = 'block';
+
+          // 加载实际的管理界面
+          fetch('/admin/feedback-content')
+            .then(response => response.text())
+            .then(html => {
+              document.getElementById('main-content').innerHTML = html;
+              // 重新执行JavaScript
+              const script = document.createElement('script');
+              script.src = '/admin/feedback.js';
+              document.head.appendChild(script);
+            });
+        }
+
+        function authenticate() {
+          const token = document.getElementById('token').value.trim();
+          if (!token) return;
+
+          document.getElementById('loading').style.display = 'block';
+          document.getElementById('error').style.display = 'none';
+
+          // 验证token
+          fetch('/admin/api/stats', {
+            headers: {
+              'Authorization': 'Bearer ' + token
+            }
+          })
+          .then(response => {
+            document.getElementById('loading').style.display = 'none';
+            if (response.ok) {
+              // 认证成功，存储token
+              localStorage.setItem('adminToken', token);
+              loadMainContent();
+            } else {
+              document.getElementById('error').style.display = 'block';
+            }
+          })
+          .catch(() => {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+          });
+        }
+
+        function handleKeyPress(event) {
+          if (event.key === 'Enter') {
+            authenticate();
+          }
+        }
+
+        // 页面加载时检查认证状态
+        document.addEventListener('DOMContentLoaded', checkExistingAuth);
+      </script>
+    </body>
+    </html>
+  `);
 };
 
-// 反馈管理页面
-router.get("/feedback", htmlAuthMiddleware, (req, res) => {
+// 反馈管理页面（带认证）
+router.get("/feedback", htmlAuthMiddleware);
+
+// 反馈管理内容页面（无认证，由前端JavaScript控制）
+router.get("/feedback-content", (req, res) => {
   res.sendFile(path.join(__dirname, "../admin/feedback.html"));
 });
 
