@@ -79,18 +79,22 @@ function setupFeedbackActions(bot) {
     await ctx.answerCbQuery();
 
     const serverPort = process.env.PORT || 3153;
-    const webUrl = `http://localhost:${serverPort}/admin/feedback`;
+    const serverHost = process.env.SERVER_HOST || "158.220.97.178";
+    const webUrl = `http://${serverHost}:${serverPort}/admin/feedback`;
 
     return ctx.reply(
       "🌐 <b>Web管理界面</b>\n\n" +
         `请在浏览器中访问：\n<code>${webUrl}</code>\n\n` +
         "🔑 <b>认证信息：</b>\n" +
-        "• 认证方式：Bearer Token\n" +
-        "• Token：<code>admin123</code>\n\n" +
-        "💡 <b>使用说明：</b>\n" +
-        "1. 在浏览器中打开上述链接\n" +
-        "2. 在请求头中添加认证信息\n" +
-        "3. 或使用API工具（如Postman）访问",
+        "• 访问令牌：<code>admin123</code>\n\n" +
+        "💡 <b>访问方式：</b>\n" +
+        "1. 直接访问上述链接\n" +
+        "2. 在认证页面输入令牌：admin123\n" +
+        "3. 或在URL后添加：?token=admin123\n\n" +
+        "📍 <b>VPS部署说明：</b>\n" +
+        "• 将localhost替换为您的VPS IP地址\n" +
+        "• 确保防火墙已开放端口 " +
+        serverPort,
       {
         parse_mode: "HTML",
         reply_markup: menus.getAdminFeedbackMenu().reply_markup,
