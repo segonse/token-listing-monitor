@@ -88,9 +88,28 @@ const htmlAuthMiddleware = (req, res, next) => {
         #main-content {
           display: none;
         }
+        #loading-page {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 100vh;
+          background: #f5f5f5;
+        }
+        .loading-content {
+          text-align: center;
+          color: #7f8c8d;
+        }
       </style>
     </head>
     <body>
+      <!-- 初始加载页面 -->
+      <div id="loading-page">
+        <div class="loading-content">
+          <h3>🔄 正在加载...</h3>
+          <p>检查认证状态中</p>
+        </div>
+      </div>
+
       <div id="auth-page" class="auth-container">
         <div class="auth-form">
           <h2>🔐 管理员认证</h2>
@@ -134,12 +153,18 @@ const htmlAuthMiddleware = (req, res, next) => {
           }
         }
 
+        function hideLoading() {
+          document.getElementById('loading-page').style.display = 'none';
+        }
+
         function showAuthForm() {
+          hideLoading();
           document.getElementById('auth-page').style.display = 'flex';
           document.getElementById('main-content').style.display = 'none';
         }
 
         function loadMainContent() {
+          hideLoading();
           document.getElementById('auth-page').style.display = 'none';
           document.getElementById('main-content').style.display = 'block';
 
@@ -148,10 +173,21 @@ const htmlAuthMiddleware = (req, res, next) => {
             .then(response => response.text())
             .then(html => {
               document.getElementById('main-content').innerHTML = html;
-              // 重新执行JavaScript
+
+              // 加载并执行JavaScript
               const script = document.createElement('script');
               script.src = '/admin/feedback.js';
+              script.onload = function() {
+                // JavaScript加载完成后，初始化页面
+                if (typeof window.initializeFeedbackPage === 'function') {
+                  setTimeout(window.initializeFeedbackPage, 200);
+                }
+              };
               document.head.appendChild(script);
+            })
+            .catch(error => {
+              console.error('加载管理界面失败:', error);
+              showAuthForm();
             });
         }
 

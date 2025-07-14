@@ -257,8 +257,8 @@ function logout() {
   }
 }
 
-// 页面加载完成后初始化
-document.addEventListener("DOMContentLoaded", function () {
+// 初始化函数（可以被外部调用）
+function initializeFeedbackPage() {
   // 检查认证状态
   if (!checkAuth()) {
     return;
@@ -267,19 +267,34 @@ document.addEventListener("DOMContentLoaded", function () {
   loadFeedbacks();
 
   // 绑定筛选器变化事件
-  document
-    .getElementById("status-filter")
-    .addEventListener("change", loadFeedbacks);
-  document
-    .getElementById("type-filter")
-    .addEventListener("change", loadFeedbacks);
+  const statusFilter = document.getElementById("status-filter");
+  const typeFilter = document.getElementById("type-filter");
+  const feedbackModal = document.getElementById("feedback-modal");
+
+  if (statusFilter) {
+    statusFilter.addEventListener("change", loadFeedbacks);
+  }
+  if (typeFilter) {
+    typeFilter.addEventListener("change", loadFeedbacks);
+  }
 
   // 点击模态框外部关闭
-  document
-    .getElementById("feedback-modal")
-    .addEventListener("click", function (e) {
+  if (feedbackModal) {
+    feedbackModal.addEventListener("click", function (e) {
       if (e.target === this) {
         closeFeedbackModal();
       }
     });
+  }
+}
+
+// 页面加载完成后初始化
+document.addEventListener("DOMContentLoaded", function () {
+  // 延迟一点时间，确保DOM完全加载
+  setTimeout(initializeFeedbackPage, 100);
 });
+
+// 如果是动态加载的，也提供直接调用的方式
+if (typeof window !== "undefined") {
+  window.initializeFeedbackPage = initializeFeedbackPage;
+}
