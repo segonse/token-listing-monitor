@@ -10,7 +10,7 @@ const authMiddleware = (req, res, next) => {
   // 目前使用简单的密码验证
   const auth = req.headers.authorization;
 
-  if (!auth || auth !== "Bearer admin123") {
+  if (!auth || auth !== "Bearer admin1234gsq") {
     res.status(401).json({ error: "未授权访问" });
     return;
   }
@@ -24,7 +24,7 @@ const htmlAuthMiddleware = (req, res, next) => {
   const token = req.query.token;
   const auth = req.headers.authorization;
 
-  if (token === "admin123" || (auth && auth === "Bearer admin123")) {
+  if (token === "admin1234gsq" || (auth && auth === "Bearer admin1234gsq")) {
     next();
   } else {
     // 返回简单的认证页面
