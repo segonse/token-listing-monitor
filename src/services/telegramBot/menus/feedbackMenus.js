@@ -29,19 +29,19 @@ function getMyFeedbackMenu(feedbacks) {
   const buttons = [];
 
   if (feedbacks.length === 0) {
-    buttons.push([
-      Markup.button.callback("❌ 暂无反馈记录", "no_action"),
-    ]);
+    buttons.push([Markup.button.callback("❌ 暂无反馈记录", "no_action")]);
   } else {
     // 显示最近的反馈（最多5个）
     feedbacks.slice(0, 5).forEach((feedback, index) => {
       const statusEmoji = getStatusEmoji(feedback.status);
       const typeEmoji = getTypeEmoji(feedback.type);
       const displayText = `${statusEmoji} ${typeEmoji} ${feedback.title}`;
-      
+
       buttons.push([
         Markup.button.callback(
-          displayText.length > 35 ? displayText.substring(0, 35) + "..." : displayText,
+          displayText.length > 35
+            ? displayText.substring(0, 35) + "..."
+            : displayText,
           `view_feedback_${feedback.id}`
         ),
       ]);
@@ -49,7 +49,10 @@ function getMyFeedbackMenu(feedbacks) {
 
     if (feedbacks.length > 5) {
       buttons.push([
-        Markup.button.callback(`📄 查看更多 (${feedbacks.length - 5}条)`, "view_more_feedback"),
+        Markup.button.callback(
+          `📄 查看更多 (${feedbacks.length - 5}条)`,
+          "view_more_feedback"
+        ),
       ]);
     }
   }
@@ -73,7 +76,7 @@ function getFeedbackDetailMenu(feedbackId) {
 // 管理员反馈查看菜单
 function getAdminFeedbackMenu() {
   return Markup.inlineKeyboard([
-    [Markup.button.url("🌐 打开Web管理界面", "http://localhost:3000/admin/feedback")],
+    [Markup.button.callback("🌐 打开Web管理界面", "open_web_admin")],
     [Markup.button.callback("🏠 返回主菜单", "back_to_main")],
   ]);
 }

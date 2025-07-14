@@ -82,8 +82,8 @@ function setupCommands(bot) {
   });
 }
 
-function getMainMenu() {
-  return menus.getMainMenu();
+function getMainMenu(isAdmin = false) {
+  return menus.getMainMenu(isAdmin);
 }
 
 module.exports = {

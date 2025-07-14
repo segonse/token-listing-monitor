@@ -34,9 +34,14 @@ class TelegramBot {
           ctx.reply("未识别的命令。发送 /help 获取可用命令列表。");
         } else {
           // 普通文本消息
+          const telegramChatId = ctx.chat.id.toString();
+          const userId = `tg_${telegramChatId}`;
+          const FeedbackService = require("../feedbackService");
+          const isAdmin = await FeedbackService.isAdmin(userId);
+
           ctx.reply(
             "您好！请使用菜单按钮或发送 /help 查看可用命令。",
-            commands.getMainMenu()
+            commands.getMainMenu(isAdmin)
           );
         }
       }
