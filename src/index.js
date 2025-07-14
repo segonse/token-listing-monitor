@@ -1,8 +1,10 @@
 const express = require("express");
+const path = require("path");
 const db = require("./config/database");
 const { initDatabase } = require("./utils/dbInit");
 const { scheduleMonitor } = require("./utils/scheduler");
 const routes = require("./routes");
+const adminRoutes = require("./web/routes/adminRoutes");
 const MonitorService = require("./services/monitorService");
 const telegramBot = require("./services/telegramBot/index");
 require("dotenv").config();
@@ -14,8 +16,12 @@ const PORT = process.env.PORT || 3153;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// 静态文件服务（用于管理界面）
+app.use("/admin", express.static(path.join(__dirname, "web/admin")));
+
 // 路由
 app.use("/api", routes);
+app.use("/admin", adminRoutes);
 
 // 健康检查
 app.get("/health", (req, res) => {

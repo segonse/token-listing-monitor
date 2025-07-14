@@ -1,5 +1,6 @@
 const menus = require("../menus");
 const TokenSearchService = require("../../tokenSearchService");
+const { handleFeedbackTextInput } = require("./feedbackActions");
 
 // 导入状态管理（从subscriptionActions中导入）
 let userStates, userSelections;
@@ -13,6 +14,12 @@ function setStateManagers(states, selections) {
 async function handleTextInput(bot, ctx) {
   const chatId = ctx.chat.id.toString();
   const text = ctx.message.text;
+
+  // 优先检查反馈系统的文本输入处理
+  const feedbackHandled = await handleFeedbackTextInput(bot, ctx);
+  if (feedbackHandled) {
+    return true;
+  }
 
   // 检查订阅系统的文本输入处理
   const subscriptionState = userStates && userStates.get(chatId);
@@ -75,7 +82,7 @@ async function handleTextInput(bot, ctx) {
   return false; // 不是我们处理的文本输入
 }
 
-module.exports = { 
+module.exports = {
   handleTextInput,
-  setStateManagers 
+  setStateManagers,
 };

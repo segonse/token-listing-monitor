@@ -1,10 +1,20 @@
 const { Markup } = require("telegraf");
 
-function getMainMenu() {
-  return Markup.inlineKeyboard([
+function getMainMenu(isAdmin = false) {
+  const buttons = [
     [Markup.button.callback("🔔 管理订阅", "manage_subscriptions")],
     [Markup.button.callback("🔍 查询历史公告", "check_history_announcements")],
-  ]);
+  ];
+
+  if (isAdmin) {
+    buttons.push([
+      Markup.button.callback("📊 查看反馈", "admin_view_feedback"),
+    ]);
+  } else {
+    buttons.push([Markup.button.callback("💬 反馈建议", "user_feedback")]);
+  }
+
+  return Markup.inlineKeyboard(buttons);
 }
 
 function getResultNavMenu() {

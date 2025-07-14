@@ -1,5 +1,5 @@
 const { Markup } = require("telegraf");
-const db = require("../../config/database");
+const FeedbackService = require("../feedbackService");
 const menus = require("./menus");
 const queries = require("./queries");
 
@@ -8,13 +8,21 @@ function setupCommands(bot) {
   bot.bot.command("start", async (ctx) => {
     const telegramChatId = ctx.chat.id.toString();
     const telegramUsername = ctx.from.username || "";
+    const userId = `tg_${telegramChatId}`;
 
     try {
       await queries.createOrUpdateUser(telegramChatId, telegramUsername);
-      return ctx.reply(
-        "欢迎使用代币监控机器人！请选择以下功能：",
-        getMainMenu()
-      );
+
+      // 检查是否为管理员
+      const isAdmin = await FeedbackService.isAdmin(userId);
+
+      let welcomeMessage = "欢迎使用代币监控机器人！";
+      if (isAdmin) {
+        welcomeMessage += "\n\n🔧 您拥有管理员权限";
+      }
+      welcomeMessage += "\n\n请选择以下功能：";
+
+      return ctx.reply(welcomeMessage, menus.getMainMenu(isAdmin));
     } catch (error) {
       console.error("创建/更新Telegram用户失败:", error);
       return ctx.reply("初始化失败，请稍后重试。");

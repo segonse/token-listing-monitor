@@ -73,17 +73,33 @@ async function finalizeSubscription(ctx, chatId, selection) {
 
   const userDbId = users[0].id;
 
-  // 生成订阅组合
-  const subscriptions = [];
-  for (const exchange of selection.exchanges) {
-    for (const type of selection.types) {
-      subscriptions.push({
-        exchange,
-        announcementType: type,
-        tokenFilter: selection.tokenFilter,
-      });
-    }
+  // 验证交易所和公告类型组合
+  const ExchangeDataService = require("../../exchangeDataService");
+  const validCombos = await ExchangeDataService.validateBatchCombos(
+    selection.exchanges,
+    selection.types
+  );
+
+  if (validCombos.length === 0) {
+    return ctx.editMessageText(
+      "❌ <b>订阅失败</b>\n\n所选的交易所和公告类型组合在数据库中不存在。\n\n请重新选择有效的组合。",
+      {
+        parse_mode: "HTML",
+        reply_markup: menus.getSubscriptionMainMenu().reply_markup,
+      }
+    );
   }
+
+  // 生成有效的订阅组合
+  const subscriptions = validCombos.map((combo) => ({
+    exchange: combo.exchange,
+    announcementType: combo.type,
+    tokenFilter: selection.tokenFilter,
+  }));
+
+  // 计算被过滤掉的组合数量
+  const totalCombos = selection.exchanges.length * selection.types.length;
+  const filteredCount = totalCombos - validCombos.length;
 
   const success = await SubscriptionService.addBatchSubscriptions(
     userDbId,
@@ -98,7 +114,12 @@ async function finalizeSubscription(ctx, chatId, selection) {
     if (selection.tokenFilter) {
       message += `• 代币筛选：${selection.tokenFilter}\n`;
     }
-    message += `• 总计：${subscriptions.length} 个订阅\n`;
+    message += `• 有效订阅：${subscriptions.length} 个\n`;
+
+    if (filteredCount > 0) {
+      message += `• 已过滤：${filteredCount} 个无效组合\n`;
+      message += `\n💡 提示：某些交易所和公告类型组合在数据库中不存在，已自动过滤。\n`;
+    }
 
     // 清理用户状态
     clearUserState(chatId);
