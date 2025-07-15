@@ -67,7 +67,7 @@ const startServer = async () => {
     }
 
     // 启动定时任务
-    scheduleMonitor();
+    // scheduleMonitor();
 
     // 启动Telegram Bot
     telegramBot.launch();
@@ -92,9 +92,9 @@ const startServer = async () => {
       );
 
       const needsHistoricalData = {
-        binance: binanceCount[0].count === 0,
-        okx: okxCount[0].count === 0,
-        bitget: bitgetCount[0].count === 0,
+        binance: binanceCount[0].count === 1,
+        okx: okxCount[0].count === 1,
+        bitget: bitgetCount[0].count === 1,
       };
 
       // 如果任何一个交易所需要历史数据，则进行获取

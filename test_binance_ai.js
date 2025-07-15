@@ -1,4 +1,4 @@
-const BinanceService = require("./src/services/binanceService");
+const OkxService = require("./src/services/okxService");
 const AIAnalyzerService = require("./src/services/aiAnalyzerService");
 
 async function testBinanceAI() {
@@ -37,7 +37,7 @@ async function testBinanceAI() {
     console.log("注意：这将调用真实的Binance API和AI分析器");
 
     // 只获取第一页的少量数据进行测试
-    const announcements = await BinanceService.getAnnouncements(4);
+    const announcements = await OkxService.getAnnouncements(1);
     console.log(`获取到 ${announcements.length} 条公告`);
 
     if (announcements.length > 0) {

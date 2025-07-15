@@ -17,11 +17,8 @@ class OkxService {
    - 上新: 新代币上线/现货交易
    - 盘前: 盘前交易
    - 合约: 合约/期货相关
-   - 下架: 代币或交易对下线/退市
-   - launchpool: OKX Jumpstart项目
-   - 创新: 创新区上线
-   - 活动: 交易活动/奖励
-   - 维护: 系统维护/升级
+   - jumpstart: OKX Jumpstart项目
+   - 空投: 空投相关
    - 未分类: 其他类型
 
 2. 如果公告同时具有代币的name和symbol，才提取代币信息。如果是交易对类型（包括上线和下线）则不提取代币信息且如果不是合约等分类则归到未分类：
@@ -46,10 +43,12 @@ class OkxService {
 }
 
 注意：
-- 如果无法确定代币信息，tokens数组为空
-- 如果是交易对格式（如BTC/USDT），不提取代币信息
-- 置信度要根据标题的明确程度给出
-- 分析说明要简洁明了
+- categories是数组，可以包含多个分类
+- 如果不包含新代币上线相关内容，tokens数组为空
+- 未分类类型只有在无法归类到其他类型时才使用
+- 如果是交易对格式（如BTC/USDT），不提取代币信息，但需要注意提取对应分类
+- perpetual代表永续合约，一般属于合约类型公告
+- 如果某个公告是jumpstart分类，那么就不必添加其他分类了
 `;
   }
   // 获取OKX所有公告（包括new-listings和jumpstart）
@@ -113,31 +112,60 @@ class OkxService {
       ) {
         const announcements = response.data.data[0].details || [];
 
-        const processedAnnouncements = await Promise.all(
-          announcements.map(async (item) => {
-            // 基本公告信息
-            const baseAnnouncement = {
-              exchange: "OKX",
-              title: item.title,
-              description: "", // OKX没有description字段
-              url: item.url,
-              publishTime: new Date(parseInt(item.pTime)),
-              // 提取代币信息
-              tokenInfoArray: await this.extractTokenInfo(item.title),
-            };
+        let processedAnnouncements = [];
 
-            // 判断公告类型
-            const types = await this.determineAnnouncementTypes(item.title);
+        // 使用AI分析器处理公告（避免重复调用）
+        const aiAnalyzer = new AIAnalyzerService();
 
-            // 将每种类型创建一个独立的公告对象
-            return types.map((type) => ({
-              ...baseAnnouncement,
-              type,
-            }));
-          })
-        );
+        for (const item of announcements) {
+          const title = item.title;
 
-        return processedAnnouncements.flat(); // 展平数组
+          // 使用AI分析公告（一次调用获得分类和代币信息）
+          const prompt = this.getOkxPrompt(title, "OKX");
+          const aiAnalysis = await aiAnalyzer.analyzeAnnouncement(
+            title,
+            "OKX",
+            prompt
+          );
+
+          // 转换AI分析结果为tokenInfoArray格式
+          const tokenInfoArray = aiAnalysis.tokens
+            ? aiAnalysis.tokens.map((token) => ({
+                tokenName: token.symbol,
+                projectName: token.name,
+              }))
+            : [];
+
+          // 创建基本公告对象
+          const baseAnnouncement = {
+            exchange: "OKX",
+            title: item.title,
+            description: "", // OKX没有description字段
+            url: item.url,
+            publishTime: new Date(parseInt(item.pTime)),
+            tokenInfoArray: tokenInfoArray,
+            aiAnalysis: aiAnalysis, // 保存AI分析结果
+          };
+
+          // 使用AI分析结果中的分类
+          const types =
+            aiAnalysis.categories && aiAnalysis.categories.length > 0
+              ? aiAnalysis.categories
+              : ["未分类"];
+
+          // 为每个类型创建一条公告
+          for (const type of types) {
+            const announcementWithType = { ...baseAnnouncement, type: type };
+            processedAnnouncements.push(announcementWithType);
+          }
+
+          // 添加延迟避免AI API限制
+          if (announcements.indexOf(item) < announcements.length - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+
+        return processedAnnouncements;
       }
 
       return [];
@@ -190,19 +218,50 @@ class OkxService {
       ) {
         const announcements = response.data.data[0].details || [];
 
-        return await Promise.all(
-          announcements.map(async (item) => {
-            return {
-              exchange: "OKX",
-              title: item.title,
-              description: "",
-              type: "jumpstart", // 所有Jumpstart公告统一分类
-              url: item.url,
-              publishTime: new Date(parseInt(item.pTime)),
-              tokenInfoArray: await this.extractTokenInfo(item.title),
-            };
-          })
-        );
+        let processedAnnouncements = [];
+
+        // 使用AI分析器处理公告
+        const aiAnalyzer = new AIAnalyzerService();
+
+        for (const item of announcements) {
+          const title = item.title;
+
+          // 使用AI分析公告
+          const prompt = this.getOkxPrompt(title, "OKX");
+          const aiAnalysis = await aiAnalyzer.analyzeAnnouncement(
+            title,
+            "OKX",
+            prompt
+          );
+
+          // 转换AI分析结果为tokenInfoArray格式
+          const tokenInfoArray = aiAnalysis.tokens
+            ? aiAnalysis.tokens.map((token) => ({
+                tokenName: token.symbol,
+                projectName: token.name,
+              }))
+            : [];
+
+          const announcement = {
+            exchange: "OKX",
+            title: item.title,
+            description: "",
+            type: "jumpstart", // 所有Jumpstart公告统一分类
+            url: item.url,
+            publishTime: new Date(parseInt(item.pTime)),
+            tokenInfoArray: tokenInfoArray,
+            aiAnalysis: aiAnalysis, // 保存AI分析结果
+          };
+
+          processedAnnouncements.push(announcement);
+
+          // 添加延迟避免AI API限制
+          if (announcements.indexOf(item) < announcements.length - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+
+        return processedAnnouncements;
       }
 
       return [];
@@ -210,35 +269,6 @@ class OkxService {
       console.error("获取OKX Jumpstart公告失败:", error.message);
       return [];
     }
-  }
-
-  // 使用AI分析判断公告类型
-  static async determineAnnouncementTypes(title) {
-    const aiAnalyzer = new AIAnalyzerService();
-    const prompt = this.getOkxPrompt(title, "OKX");
-    const analysis = await aiAnalyzer.analyzeAnnouncement(title, "OKX", prompt);
-
-    if (analysis && analysis.categories && Array.isArray(analysis.categories)) {
-      return analysis.categories.length > 0 ? analysis.categories : ["未分类"];
-    }
-
-    return ["未分类"];
-  }
-
-  // 使用AI分析提取代币信息
-  static async extractTokenInfo(title) {
-    const aiAnalyzer = new AIAnalyzerService();
-    const prompt = this.getOkxPrompt(title, "OKX");
-    const analysis = await aiAnalyzer.analyzeAnnouncement(title, "OKX", prompt);
-
-    if (analysis && analysis.tokens && Array.isArray(analysis.tokens)) {
-      return analysis.tokens.map((token) => ({
-        tokenName: token.symbol,
-        projectName: token.name,
-      }));
-    }
-
-    return [];
   }
 }
 
