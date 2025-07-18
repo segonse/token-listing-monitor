@@ -63,8 +63,11 @@ class BitgetService {
       ) {
         const announcements = response.data.data.items || [];
 
-        return announcements.map((item) => {
-          // 基本公告信息
+        // 需要异步处理每个公告的代币提取
+        const processedAnnouncements = [];
+        for (const item of announcements) {
+          const tokenInfoArray = await this.extractTokenInfo(item.title);
+
           const announcement = {
             exchange: "Bitget",
             title: item.title,
@@ -74,11 +77,13 @@ class BitgetService {
             publishTime: item.showTime
               ? new Date(parseInt(item.showTime))
               : new Date(),
-            tokenInfoArray: this.extractTokenInfo(item.title),
+            tokenInfoArray: tokenInfoArray,
           };
 
-          return announcement;
-        });
+          processedAnnouncements.push(announcement);
+        }
+
+        return processedAnnouncements;
       }
 
       return [];
@@ -132,8 +137,22 @@ class BitgetService {
     return baseType;
   }
 
-  // 提取代币信息
-  static extractTokenInfo(title) {
+  // 提取代币信息（增强版，支持只有symbol的情况）
+  static async extractTokenInfo(title) {
+    const Token = require("../models/Token");
+
+    // 使用Token模型的增强提取方法
+    const extractedTokens = await Token.extractTokensFromText(title);
+
+    // 转换为Bitget服务期望的格式
+    return extractedTokens.map((token) => ({
+      name: token.name,
+      symbol: token.symbol,
+    }));
+  }
+
+  // 保留原有的正则表达式方法作为备用
+  static extractTokenInfoLegacy(title) {
     const tokens = [];
 
     // 处理各种格式的标题

@@ -26,7 +26,7 @@ class SubscriptionService {
    * @param {number} userId - 用户数据库ID
    * @param {string} exchange - 交易所
    * @param {string} announcementType - 公告类型
-   * @param {string|null} tokenFilter - 代币筛选（可选）
+   * @param {number|null} tokenFilter - 代币ID筛选（可选，使用代币表的ID，INT类型）
    * @returns {Promise<boolean>} 是否成功
    */
   static async addSubscription(
@@ -197,36 +197,20 @@ class SubscriptionService {
           continue;
         }
 
-        // 检查代币筛选
+        // 检查代币筛选（现在使用代币ID）
         if (sub.token_filter) {
-          // 检查标题中是否包含代币筛选条件
-          if (
-            announcement.title
-              .toLowerCase()
-              .includes(sub.token_filter.toLowerCase())
-          ) {
-            return true;
-          }
+          // 获取公告关联的代币ID列表
+          const AnnouncementToken = require("../models/AnnouncementToken");
+          const relatedTokens =
+            await AnnouncementToken.getTokensByAnnouncementId(announcement.id);
 
-          // 检查关联的代币信息
-          if (
-            announcement.tokenInfoArray &&
-            announcement.tokenInfoArray.length > 0
-          ) {
-            for (const token of announcement.tokenInfoArray) {
-              if (
-                (token.name &&
-                  token.name
-                    .toLowerCase()
-                    .includes(sub.token_filter.toLowerCase())) ||
-                (token.symbol &&
-                  token.symbol
-                    .toLowerCase()
-                    .includes(sub.token_filter.toLowerCase()))
-              ) {
-                return true;
-              }
-            }
+          // 检查是否有匹配的代币ID（现在token_filter已经是INT类型，无需转换）
+          const hasMatchingToken = relatedTokens.some(
+            (token) => token.id === sub.token_filter
+          );
+
+          if (hasMatchingToken) {
+            return true;
           }
         } else {
           // 没有代币筛选，直接匹配

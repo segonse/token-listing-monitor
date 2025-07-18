@@ -3,6 +3,10 @@ const { setupBaseActions } = require("./baseActions");
 const { setupSubscriptionActions } = require("./subscriptionActions");
 const { setupHistoryActions } = require("./historyActions");
 const { setupFeedbackActions } = require("./feedbackActions");
+const {
+  setupFundingRateActions,
+  handleFundingRateTextInput,
+} = require("./fundingRateActions");
 const { handleTextInput } = require("./textInputActions");
 
 function setupAllActions(bot) {
@@ -17,9 +21,13 @@ function setupAllActions(bot) {
 
   // 设置反馈相关Actions
   setupFeedbackActions(bot);
+
+  // 设置资金费率Actions
+  setupFundingRateActions(bot);
 }
 
 module.exports = {
   setupAllActions,
   handleTextInput,
+  handleFundingRateTextInput,
 };

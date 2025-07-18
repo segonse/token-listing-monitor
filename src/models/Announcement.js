@@ -40,8 +40,8 @@ class Announcement {
 
       // 创建公告记录
       const [result] = await db.query(
-        `INSERT INTO announcements 
-        (exchange, title, description, type, url, publishTime, created_at, updated_at) 
+        `INSERT INTO announcements
+        (exchange, title, description, type, url, publishTime, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [exchange, title, description, type, url, publishTime]
       );
@@ -51,18 +51,26 @@ class Announcement {
       // 创建成功后，处理所有提取到的代币信息
       if (tokenInfoArray && tokenInfoArray.length > 0) {
         const Token = require("./Token");
+        const AnnouncementToken = require("./AnnouncementToken");
+        const tokenIds = [];
 
         for (const tokenInfo of tokenInfoArray) {
           if (tokenInfo.name || tokenInfo.symbol) {
-            // 每个代币信息都创建一条记录，并关联到当前公告
-            // tokenInfo.name -> tokens.name (代币完整名称)
-            // tokenInfo.symbol -> tokens.symbol (代币符号)
-            await Token.findOrCreate(
+            // 查找或创建代币记录（支持渐进式数据完善）
+            const token = await Token.findOrCreate(
               tokenInfo.name, // 代币完整名称
-              tokenInfo.symbol, // 代币符号
-              announcementId
+              tokenInfo.symbol // 代币符号
             );
+
+            if (token && token.id) {
+              tokenIds.push(token.id);
+            }
           }
+        }
+
+        // 批量创建公告-代币关联
+        if (tokenIds.length > 0) {
+          await AnnouncementToken.createBatch(announcementId, tokenIds);
         }
       }
 
@@ -141,10 +149,11 @@ class Announcement {
         FROM announcements a
       `;
 
-      // 如果有代币名称或符号筛选，需要关联tokens表
+      // 如果有代币名称或符号筛选，需要关联tokens表（使用新的关联表）
       if (tokenName || symbol) {
         query += `
-          LEFT JOIN tokens t ON t.announcement_id = a.id
+          LEFT JOIN announcement_tokens at ON at.announcement_id = a.id
+          LEFT JOIN tokens t ON t.id = at.token_id
         `;
       }
 
@@ -203,11 +212,11 @@ class Announcement {
       // 执行查询
       const [announcements] = await db.query(query, params);
 
-      // 为每个公告添加代币信息
+      // 为每个公告添加代币信息（使用新的关联表）
       for (const announcement of announcements) {
-        const [tokens] = await db.query(
-          `SELECT * FROM tokens WHERE announcement_id = ?`,
-          [announcement.id]
+        const AnnouncementToken = require("./AnnouncementToken");
+        const tokens = await AnnouncementToken.getTokensByAnnouncementId(
+          announcement.id
         );
         announcement.tokenInfoArray = tokens.map((token) => ({
           name: token.name, // 代币完整名称

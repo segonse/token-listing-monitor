@@ -21,8 +21,10 @@ class OkxService {
    - 空投: 空投相关
    - 未分类: 其他类型
 
-2. 如果公告同时具有代币的name和symbol，才提取代币信息。如果是交易对类型（包括上线和下线）则不提取代币信息且如果不是合约等分类则归到未分类：
-   - 代币名称 (name): 项目全名
+2. 提取代币信息（增强版）：
+   - 优先提取同时具有name和symbol的代币信息
+   - 公告如果只有symbol，就单独提取symbol，公告没有name不要自行生成
+   - 代币名称 (name): 项目全名（如果有的话）
    - 代币符号 (symbol): 代币符号
 
 公告标题: "${title}"
@@ -42,35 +44,35 @@ class OkxService {
   "analysis": "简短分析说明"
 }
 
-注意：
+需要遵循的规则：
 - categories是数组，可以包含多个分类
-- 如果不包含新代币上线相关内容，tokens数组为空
+- 如果公告中不包含代币信息（甚至symbol都没有），tokens数组为空
 - 未分类类型只有在无法归类到其他类型时才使用
-- 如果是交易对格式（如BTC/USDT），不提取代币信息，但需要注意提取对应分类
+- 置信度低于0.9（不包括0.9）直接归为未分类
 - perpetual代表永续合约，一般属于合约类型公告
 - 如果某个公告是jumpstart分类，那么就不必添加其他分类了
 `;
   }
-  // 获取OKX所有公告（包括new-listings和jumpstart）
-  static async getAnnouncements(page = 1) {
+  // 获取OKX原始公告数据（不进行AI分析）
+  static async getRawAnnouncements(page = 1) {
     try {
-      const newListings = await this.getNewListingsAnnouncements(page);
+      const newListings = await this.getRawNewListingsAnnouncements(page);
 
       // 只有在获取第一页时才获取jumpstart公告
       let jumpstartAnnouncements = [];
       if (page === 1) {
-        jumpstartAnnouncements = await this.getJumpstartAnnouncements();
+        jumpstartAnnouncements = await this.getRawJumpstartAnnouncements();
       }
 
       return [...newListings, ...jumpstartAnnouncements];
     } catch (error) {
-      console.error("获取OKX公告失败:", error.message);
+      console.error("获取OKX原始公告失败:", error.message);
       return [];
     }
   }
 
-  // 获取OKX新币上线公告
-  static async getNewListingsAnnouncements(page = 1) {
+  // 获取OKX新币上线原始公告数据
+  static async getRawNewListingsAnnouncements(page = 1) {
     try {
       // 获取随机代理配置
       const proxyConfig = getDynamicProxyConfig();
@@ -112,71 +114,26 @@ class OkxService {
       ) {
         const announcements = response.data.data[0].details || [];
 
-        let processedAnnouncements = [];
-
-        // 使用AI分析器处理公告（避免重复调用）
-        const aiAnalyzer = new AIAnalyzerService();
-
-        for (const item of announcements) {
-          const title = item.title;
-
-          // 使用AI分析公告（一次调用获得分类和代币信息）
-          const prompt = this.getOkxPrompt(title, "OKX");
-          const aiAnalysis = await aiAnalyzer.analyzeAnnouncement(
-            title,
-            "OKX",
-            prompt
-          );
-
-          // 转换AI分析结果为tokenInfoArray格式
-          const tokenInfoArray = aiAnalysis.tokens
-            ? aiAnalysis.tokens.map((token) => ({
-                tokenName: token.symbol,
-                projectName: token.name,
-              }))
-            : [];
-
-          // 创建基本公告对象
-          const baseAnnouncement = {
-            exchange: "OKX",
-            title: item.title,
-            description: "", // OKX没有description字段
-            url: item.url,
-            publishTime: new Date(parseInt(item.pTime)),
-            tokenInfoArray: tokenInfoArray,
-            aiAnalysis: aiAnalysis, // 保存AI分析结果
-          };
-
-          // 使用AI分析结果中的分类
-          const types =
-            aiAnalysis.categories && aiAnalysis.categories.length > 0
-              ? aiAnalysis.categories
-              : ["未分类"];
-
-          // 为每个类型创建一条公告
-          for (const type of types) {
-            const announcementWithType = { ...baseAnnouncement, type: type };
-            processedAnnouncements.push(announcementWithType);
-          }
-
-          // 添加延迟避免AI API限制
-          if (announcements.indexOf(item) < announcements.length - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 500));
-          }
-        }
-
-        return processedAnnouncements;
+        // 返回原始公告数据，不进行AI分析
+        return announcements.map((item) => ({
+          exchange: "OKX",
+          title: item.title,
+          description: "", // OKX没有description字段
+          url: item.url,
+          publishTime: new Date(parseInt(item.pTime)),
+          // 不包含AI分析结果，这些将在后续步骤中添加
+        }));
       }
 
       return [];
     } catch (error) {
-      console.error("获取OKX新币上线公告失败:", error.message);
+      console.error("获取OKX新币上线原始公告失败:", error.message);
       return [];
     }
   }
 
-  // 获取OKX Jumpstart公告
-  static async getJumpstartAnnouncements() {
+  // 获取OKX Jumpstart原始公告数据
+  static async getRawJumpstartAnnouncements() {
     try {
       // 获取随机代理配置
       const proxyConfig = getDynamicProxyConfig();
@@ -218,56 +175,97 @@ class OkxService {
       ) {
         const announcements = response.data.data[0].details || [];
 
-        let processedAnnouncements = [];
-
-        // 使用AI分析器处理公告
-        const aiAnalyzer = new AIAnalyzerService();
-
-        for (const item of announcements) {
-          const title = item.title;
-
-          // 使用AI分析公告
-          const prompt = this.getOkxPrompt(title, "OKX");
-          const aiAnalysis = await aiAnalyzer.analyzeAnnouncement(
-            title,
-            "OKX",
-            prompt
-          );
-
-          // 转换AI分析结果为tokenInfoArray格式
-          const tokenInfoArray = aiAnalysis.tokens
-            ? aiAnalysis.tokens.map((token) => ({
-                tokenName: token.symbol,
-                projectName: token.name,
-              }))
-            : [];
-
-          const announcement = {
-            exchange: "OKX",
-            title: item.title,
-            description: "",
-            type: "jumpstart", // 所有Jumpstart公告统一分类
-            url: item.url,
-            publishTime: new Date(parseInt(item.pTime)),
-            tokenInfoArray: tokenInfoArray,
-            aiAnalysis: aiAnalysis, // 保存AI分析结果
-          };
-
-          processedAnnouncements.push(announcement);
-
-          // 添加延迟避免AI API限制
-          if (announcements.indexOf(item) < announcements.length - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 500));
-          }
-        }
-
-        return processedAnnouncements;
+        // 返回原始公告数据，不进行AI分析
+        return announcements.map((item) => ({
+          exchange: "OKX",
+          title: item.title,
+          description: "",
+          url: item.url,
+          publishTime: new Date(parseInt(item.pTime)),
+          // 标记为jumpstart类型，但不进行AI分析
+          originalType: "jumpstart",
+        }));
       }
 
       return [];
     } catch (error) {
-      console.error("获取OKX Jumpstart公告失败:", error.message);
+      console.error("获取OKX Jumpstart原始公告失败:", error.message);
       return [];
+    }
+  }
+
+  /**
+   * 对单个公告进行AI分析
+   * @param {Object} rawAnnouncement - 原始公告对象
+   * @returns {Promise<Array>} 分析后的公告数组（可能包含多个类型）
+   */
+  static async analyzeAnnouncementWithAI(rawAnnouncement) {
+    try {
+      const aiAnalyzer = new AIAnalyzerService();
+
+      // 如果是jumpstart类型，直接使用固定分类
+      if (rawAnnouncement.originalType === "jumpstart") {
+        return [
+          {
+            ...rawAnnouncement,
+            type: "jumpstart",
+            tokenInfoArray: [],
+            aiAnalysis: null,
+          },
+        ];
+      }
+
+      // 使用AI分析公告
+      const prompt = this.getOkxPrompt(rawAnnouncement.title, "OKX");
+      const aiAnalysis = await aiAnalyzer.analyzeAnnouncement(
+        rawAnnouncement.title,
+        "OKX",
+        prompt
+      );
+
+      // 转换AI分析结果为tokenInfoArray格式
+      const tokenInfoArray = aiAnalysis.tokens
+        ? aiAnalysis.tokens.map((token) => ({
+            name: token.name,
+            symbol: token.symbol,
+          }))
+        : [];
+
+      // 创建基本公告对象
+      const baseAnnouncement = {
+        ...rawAnnouncement,
+        tokenInfoArray: tokenInfoArray,
+        aiAnalysis: aiAnalysis,
+      };
+
+      // 使用AI分析结果中的分类
+      const types =
+        aiAnalysis.categories && aiAnalysis.categories.length > 0
+          ? aiAnalysis.categories
+          : ["未分类"];
+
+      // 为每个类型创建一条公告
+      const processedAnnouncements = [];
+      for (const type of types) {
+        const announcementWithType = { ...baseAnnouncement, type: type };
+        processedAnnouncements.push(announcementWithType);
+      }
+
+      return processedAnnouncements;
+    } catch (error) {
+      console.error(
+        `OKX公告AI分析失败: ${rawAnnouncement.title}`,
+        error.message
+      );
+      // 返回未分类的公告
+      return [
+        {
+          ...rawAnnouncement,
+          type: "未分类",
+          tokenInfoArray: [],
+          aiAnalysis: null,
+        },
+      ];
     }
   }
 }

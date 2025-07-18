@@ -4,15 +4,18 @@ const formatters = require("../formatters");
 
 function setupHistoryActions(bot) {
   // 选择交易所
-  bot.bot.action(/exchange_(.+)/, async (ctx) => {
+  bot.bot.action(/^exchange_(.+)$/, async (ctx) => {
     await ctx.answerCbQuery();
     const exchange = ctx.match[1];
 
     return ctx.editMessageText(
-      `🔍 <b>查询历史公告 - ${exchange === "all_exchanges" ? "全部交易所" : exchange}</b>\n\n请选择公告类型：`,
+      `🔍 <b>查询历史公告 - ${
+        exchange === "all_exchanges" ? "全部交易所" : exchange
+      }</b>\n\n请选择公告类型：`,
       {
         parse_mode: "HTML",
-        reply_markup: (await menus.getAnnouncementTypesMenu(exchange)).reply_markup,
+        reply_markup: (await menus.getAnnouncementTypesMenu(exchange))
+          .reply_markup,
       }
     );
   });
@@ -24,7 +27,9 @@ function setupHistoryActions(bot) {
     const type = ctx.match[2];
 
     return ctx.editMessageText(
-      `🔍 <b>查询历史公告</b>\n\n交易所：${exchange === "all_exchanges" ? "全部" : exchange}\n公告类型：${type === "all" ? "全部" : type}\n\n是否需要代币筛选？`,
+      `🔍 <b>查询历史公告</b>\n\n交易所：${
+        exchange === "all_exchanges" ? "全部" : exchange
+      }\n公告类型：${type === "all" ? "全部" : type}\n\n是否需要代币筛选？`,
       {
         parse_mode: "HTML",
         reply_markup: menus.getTokenFilterMenu(exchange, type).reply_markup,
@@ -42,7 +47,11 @@ function setupHistoryActions(bot) {
     if (filterType === "none") {
       // 不筛选，直接询问结果数量
       return ctx.editMessageText(
-        `🔍 <b>查询历史公告</b>\n\n交易所：${exchange === "all_exchanges" ? "全部" : exchange}\n公告类型：${type === "all" ? "全部" : type}\n代币筛选：无\n\n您要查看多少条结果？`,
+        `🔍 <b>查询历史公告</b>\n\n交易所：${
+          exchange === "all_exchanges" ? "全部" : exchange
+        }\n公告类型：${
+          type === "all" ? "全部" : type
+        }\n代币筛选：无\n\n您要查看多少条结果？`,
         {
           parse_mode: "HTML",
           reply_markup: menus.getLimitMenu(exchange, type).reply_markup,
@@ -67,7 +76,9 @@ function setupHistoryActions(bot) {
 
     try {
       // 优先从存储的用户选择中获取参数
-      let exchange, type, tokenOrSymbol = null;
+      let exchange,
+        type,
+        tokenOrSymbol = null;
 
       if (bot.userSelections && bot.userSelections[chatId]) {
         exchange = bot.userSelections[chatId].exchange;

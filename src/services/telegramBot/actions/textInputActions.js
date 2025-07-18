@@ -1,6 +1,7 @@
 const menus = require("../menus");
 const TokenSearchService = require("../../tokenSearchService");
 const { handleFeedbackTextInput } = require("./feedbackActions");
+const { handleFundingRateTextInput } = require("./fundingRateActions");
 
 // 导入状态管理（从subscriptionActions中导入）
 let userStates, userSelections;
@@ -18,6 +19,12 @@ async function handleTextInput(bot, ctx) {
   // 优先检查反馈系统的文本输入处理
   const feedbackHandled = await handleFeedbackTextInput(bot, ctx);
   if (feedbackHandled) {
+    return true;
+  }
+
+  // 检查资金费率系统的文本输入处理
+  const fundingRateHandled = await handleFundingRateTextInput(bot, ctx);
+  if (fundingRateHandled) {
     return true;
   }
 

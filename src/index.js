@@ -1,6 +1,9 @@
 const express = require("express");
 const path = require("path");
 const db = require("./config/database");
+const {
+  testConnection: testFundingRateConnection,
+} = require("./config/fundingRateDatabase");
 const { initDatabase } = require("./utils/dbInit");
 const { scheduleMonitor } = require("./utils/scheduler");
 const routes = require("./routes");
@@ -64,6 +67,18 @@ const startServer = async () => {
     if (!dbInitialized) {
       console.error("数据库初始化失败，应用无法启动");
       process.exit(1);
+    }
+
+    // 测试资金费率数据库连接
+    try {
+      const connected = await testFundingRateConnection();
+      if (connected) {
+        console.log("资金费率数据库连接成功");
+      } else {
+        console.warn("资金费率数据库连接失败，资金费率查询功能将不可用");
+      }
+    } catch (error) {
+      console.warn("资金费率数据库连接失败:", error.message);
     }
 
     // 启动定时任务

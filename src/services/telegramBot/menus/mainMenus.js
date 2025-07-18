@@ -4,6 +4,7 @@ function getMainMenu(isAdmin = false) {
   const buttons = [
     [Markup.button.callback("🔔 管理订阅", "manage_subscriptions")],
     [Markup.button.callback("🔍 查询历史公告", "check_history_announcements")],
+    [Markup.button.callback("💰 资金费率查询", "funding_rate_query")],
   ];
 
   if (isAdmin) {

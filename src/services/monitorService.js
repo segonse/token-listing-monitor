@@ -24,174 +24,238 @@ class MonitorService {
         return;
       }
 
-      // 获取各交易所公告
+      // 获取各交易所原始公告数据（不进行AI分析）
       const [
         // bybitAnnouncements,
-        okxAnnouncements,
-        binanceAnnouncements,
-        bitgetAnnouncements,
+        okxRawAnnouncements,
+        binanceRawAnnouncements,
+        bitgetAnnouncements, // Bitget暂时保持原有逻辑
         // kucoinAnnouncements,
         // htxAnnouncements,
         // gateAnnouncements,
         // xtAnnouncements,
       ] = await Promise.all([
         // BybitService.getAllAnnouncements(),
-        OkxService.getAnnouncements(),
-        BinanceService.getAnnouncements(),
-        BitgetService.getAllAnnouncements(),
+        OkxService.getRawAnnouncements(),
+        BinanceService.getRawAnnouncements(),
+        BitgetService.getAllAnnouncements(), // Bitget暂时保持原有逻辑
         // KucoinService.getAnnouncements(),
         // HtxService.getAnnouncements(),
         // GateService.getAnnouncements(),
         // XtService.getAnnouncements(),
       ]);
 
-      // 合并所有公告
-      const allAnnouncements = [
+      // 合并所有原始公告
+      const allRawAnnouncements = [
         // ...bybitAnnouncements,
-        ...okxAnnouncements,
-        ...binanceAnnouncements,
-        ...bitgetAnnouncements,
+        ...okxRawAnnouncements,
+        ...binanceRawAnnouncements,
+        ...bitgetAnnouncements, // Bitget暂时保持原有逻辑
         // ...kucoinAnnouncements,
         // ...htxAnnouncements,
         // ...gateAnnouncements,
         // ...xtAnnouncements,
       ];
 
-      if (!allAnnouncements.length) {
+      if (!allRawAnnouncements.length) {
         console.log("未获取到任何交易所公告，跳过检查");
         return;
       }
 
-      console.log(`获取到总共 ${allAnnouncements.length} 条公告`);
+      console.log(`获取到总共 ${allRawAnnouncements.length} 条原始公告`);
       // console.log(`- Bybit: ${bybitAnnouncements.length} 条`);
-      console.log(`- OKX: ${okxAnnouncements.length} 条`);
-      console.log(`- Binance: ${binanceAnnouncements.length} 条`);
+      console.log(`- OKX: ${okxRawAnnouncements.length} 条`);
+      console.log(`- Binance: ${binanceRawAnnouncements.length} 条`);
       console.log(`- Bitget: ${bitgetAnnouncements.length} 条`);
       // console.log(`- KuCoin: ${kucoinAnnouncements.length} 条`);
       // console.log(`- HTX: ${htxAnnouncements.length} 条`);
       // console.log(`- Gate.io: ${gateAnnouncements.length} 条`);
       // console.log(`- XT: ${xtAnnouncements.length} 条`);
 
-      // 获取数据库中已有的所有公告，用于去重
+      // 获取数据库中已有的所有公告，用于去重（改为基于URL+标题）
       const existingAnnouncements = await Announcement.findAll();
 
-      // 使用Map记录已存在的URL+type组合
+      // 使用Map记录已存在的URL+标题组合
       const existingCombinations = new Map();
       for (const existing of existingAnnouncements) {
-        const key = `${existing.url}|${existing.type}`;
+        const key = `${existing.url}|${existing.title}`;
         existingCombinations.set(key, existing);
       }
 
-      // 处理每条公告
-      for (const announcement of allAnnouncements) {
-        // 构建当前公告的URL+type键
-        const key = `${announcement.url}|${announcement.type}`;
+      // 筛选出真正的新公告（基于URL+标题去重）
+      const newRawAnnouncements = [];
+      for (const announcement of allRawAnnouncements) {
+        // 构建当前公告的URL+标题键
+        const key = `${announcement.url}|${announcement.title}`;
 
         // 检查公告是否已存在
-        const existingAnnouncement = existingCombinations.get(key);
-
-        // 如果公告已存在，跳过
-        if (existingAnnouncement) {
-          continue;
+        if (!existingCombinations.has(key)) {
+          newRawAnnouncements.push(announcement);
         }
+      }
 
-        console.log(`新公告: ${announcement.title} (${announcement.exchange})`);
-        console.log(`- 类型: ${announcement.type}`);
+      console.log(
+        `发现 ${newRawAnnouncements.length} 条新公告，需要进行AI分析和处理`
+      );
 
-        // 打印提取到的所有代币信息
-        if (
-          announcement.tokenInfoArray &&
-          announcement.tokenInfoArray.length > 0
-        ) {
+      if (newRawAnnouncements.length === 0) {
+        console.log("没有新公告需要处理");
+        return;
+      }
+
+      // 对新公告进行AI分析和处理
+      for (const rawAnnouncement of newRawAnnouncements) {
+        console.log(
+          `处理新公告: ${rawAnnouncement.title} (${rawAnnouncement.exchange})`
+        );
+
+        // 根据交易所类型进行AI分析
+        let processedAnnouncementList = [];
+
+        try {
+          if (rawAnnouncement.exchange === "Binance") {
+            // 使用Binance的AI分析方法
+            processedAnnouncementList =
+              await BinanceService.analyzeAnnouncementWithAI(rawAnnouncement);
+          } else if (rawAnnouncement.exchange === "OKX") {
+            // 使用OKX的AI分析方法
+            processedAnnouncementList =
+              await OkxService.analyzeAnnouncementWithAI(rawAnnouncement);
+          } else if (rawAnnouncement.exchange === "Bitget") {
+            // Bitget使用正则表达式，已经包含了基本的代币提取，这里保持原样
+            processedAnnouncementList = [rawAnnouncement];
+          } else {
+            // 其他交易所的处理逻辑（暂时保持原样）
+            processedAnnouncementList = [rawAnnouncement];
+          }
+
           console.log(
-            `- 提取到 ${announcement.tokenInfoArray.length} 个代币信息:`
-          );
-          announcement.tokenInfoArray.forEach((token, index) => {
-            console.log(
-              `  ${index + 1}. 符号: ${token.symbol || "未知"}, 名称: ${
-                token.name || "未知"
-              }`
-            );
-          });
-        } else {
-          console.log(`- 未提取到代币信息`);
-        }
-
-        // 保存公告到数据库
-        const savedAnnouncement = await Announcement.create(announcement);
-
-        if (!savedAnnouncement) {
-          console.error(`保存公告失败: ${announcement.title}`);
-          continue;
-        }
-
-        // 添加到已存在Map中，防止重复处理
-        existingCombinations.set(key, savedAnnouncement);
-
-        // 处理用户订阅和通知
-        for (const user of users) {
-          // 检查用户是否订阅了此类公告
-          const isSubscribed = await User.checkMatchingSubscription(
-            user.user_id,
-            announcement
+            `AI分析完成，生成 ${processedAnnouncementList.length} 条分类公告`
           );
 
-          if (isSubscribed) {
-            // 检查是否已经发送过通知
-            const alreadySent = await Announcement.hasBeenSentToUser(
-              user.id,
-              savedAnnouncement.id
-            );
+          // 处理每个分析后的公告（一个原始公告可能产生多个分类后的公告）
+          for (const processedAnnouncement of processedAnnouncementList) {
+            console.log(`- 类型: ${processedAnnouncement.type}`);
 
-            if (!alreadySent) {
+            // 打印提取到的所有代币信息
+            if (
+              processedAnnouncement.tokenInfoArray &&
+              processedAnnouncement.tokenInfoArray.length > 0
+            ) {
               console.log(
-                `向用户 ${user.user_id} 发送公告通知: ${announcement.title}`
+                `- 提取到 ${processedAnnouncement.tokenInfoArray.length} 个代币信息:`
+              );
+              processedAnnouncement.tokenInfoArray.forEach((token, index) => {
+                console.log(
+                  `  ${index + 1}. 符号: ${token.symbol || "未知"}, 名称: ${
+                    token.name || "未知"
+                  }`
+                );
+              });
+            } else {
+              console.log(`- 未提取到代币信息`);
+            }
+
+            // 保存公告到数据库
+            const savedAnnouncement = await Announcement.create(
+              processedAnnouncement
+            );
+
+            if (!savedAnnouncement) {
+              console.error(`保存公告失败: ${processedAnnouncement.title}`);
+              continue;
+            }
+
+            // 添加到已存在Map中，防止重复处理
+            const key = `${processedAnnouncement.url}|${processedAnnouncement.title}`;
+            existingCombinations.set(key, savedAnnouncement);
+
+            // 处理用户订阅和通知
+            for (const user of users) {
+              // 检查用户是否订阅了此类公告
+              const isSubscribed = await User.checkMatchingSubscription(
+                user.user_id,
+                processedAnnouncement
               );
 
-              // 根据用户ID类型决定发送渠道
-              if (user.user_id.startsWith("tg_") && user.telegram_id) {
-                // Telegram用户，发送Telegram消息
-                const telegramMessage =
-                  TelegramService.formatAnnouncementMessage(announcement);
-                const messageSent = await TelegramService.sendMessageToUser(
-                  user.telegram_id,
-                  telegramMessage
+              if (isSubscribed) {
+                // 检查是否已经发送过通知
+                const alreadySent = await Announcement.hasBeenSentToUser(
+                  user.id,
+                  savedAnnouncement.id
                 );
 
-                if (messageSent) {
-                  // 标记为已发送
-                  await Announcement.markAsSentToUser(
-                    user.id,
-                    savedAnnouncement.id
+                if (!alreadySent) {
+                  console.log(
+                    `向用户 ${user.user_id} 发送公告通知: ${processedAnnouncement.title}`
                   );
-                  console.log(`成功向Telegram用户 ${user.user_id} 发送通知`);
-                } else {
-                  console.error(`向Telegram用户 ${user.user_id} 发送通知失败`);
-                }
-              } else {
-                // 默认为微信用户
-                const wechatMessage =
-                  WechatService.formatAnnouncementMessage(announcement);
-                const messageSent = await WechatService.sendMessageToUser(
-                  user.user_id,
-                  wechatMessage
-                );
 
-                if (messageSent) {
-                  // 标记为已发送
-                  await Announcement.markAsSentToUser(
-                    user.id,
-                    savedAnnouncement.id
-                  );
-                  console.log(`成功向微信用户 ${user.user_id} 发送通知`);
+                  // 根据用户ID类型决定发送渠道
+                  if (user.user_id.startsWith("tg_") && user.telegram_id) {
+                    // Telegram用户，发送Telegram消息
+                    const telegramMessage =
+                      TelegramService.formatAnnouncementMessage(
+                        processedAnnouncement
+                      );
+                    const messageSent = await TelegramService.sendMessageToUser(
+                      user.telegram_id,
+                      telegramMessage
+                    );
+
+                    if (messageSent) {
+                      // 标记为已发送
+                      await Announcement.markAsSentToUser(
+                        user.id,
+                        savedAnnouncement.id
+                      );
+                      console.log(
+                        `成功向Telegram用户 ${user.user_id} 发送通知`
+                      );
+                    } else {
+                      console.error(
+                        `向Telegram用户 ${user.user_id} 发送通知失败`
+                      );
+                    }
+                  } else {
+                    // 默认为微信用户 - 暂时注释掉微信推送功能
+                    console.log(
+                      `跳过微信用户 ${user.user_id} 的通知发送（微信推送已禁用）`
+                    );
+
+                    // 注释掉的微信推送代码
+                    /*
+                    const wechatMessage =
+                      WechatService.formatAnnouncementMessage(
+                        processedAnnouncement
+                      );
+                    const messageSent = await WechatService.sendMessageToUser(
+                      user.user_id,
+                      wechatMessage
+                    );
+
+                    if (messageSent) {
+                      // 标记为已发送
+                      await Announcement.markAsSentToUser(
+                        user.id,
+                        savedAnnouncement.id
+                      );
+                      console.log(`成功向微信用户 ${user.user_id} 发送通知`);
+                    } else {
+                      console.error(`向微信用户 ${user.user_id} 发送通知失败`);
+                    }
+                    */
+                  }
                 } else {
-                  console.error(`向微信用户 ${user.user_id} 发送通知失败`);
+                  console.log(`通知已经发送给用户 ${user.user_id}，跳过`);
                 }
               }
-            } else {
-              console.log(`通知已经发送给用户 ${user.user_id}，跳过`);
             }
           }
+        } catch (error) {
+          console.error(
+            `处理公告失败: ${rawAnnouncement.title}`,
+            error.message
+          );
         }
       }
 
@@ -208,16 +272,16 @@ class MonitorService {
     try {
       console.log("开始获取历史公告数据...");
 
-      // 记录已存储的URL+类型组合
+      // 记录已存储的URL+标题组合（与定时检查保持一致）
       const storedCombinations = new Map();
 
       // 先查询数据库中已有的公告
       const existingAnnouncements = await Announcement.findAll();
 
-      // 将已有公告的URL+类型组合加入到Map中
+      // 将已有公告的URL+标题组合加入到Map中
       for (const existing of existingAnnouncements) {
-        const key = `${existing.url}|${existing.type}`;
-        storedCombinations.set(key, true);
+        const key = `${existing.url}|${existing.title}`;
+        storedCombinations.set(key, existing);
       }
 
       let binanceAnnouncements = [];
@@ -244,20 +308,21 @@ class MonitorService {
                 }`
               );
 
-              // 调用 getAnnouncements 方法
-              const announcements = await BinanceService.getAnnouncements(page);
+              // 使用新的分离逻辑：先获取原始数据
+              const rawAnnouncements = await BinanceService.getRawAnnouncements(
+                page
+              );
 
               // 增加日志，用于问题排查
               console.log(
-                `获取到 Binance 第 ${page} 页数据: ${
-                  announcements ? announcements.length : 0
+                `获取到 Binance 第 ${page} 页原始数据: ${
+                  rawAnnouncements ? rawAnnouncements.length : 0
                 } 条`
               );
 
               // 即使返回了空数组，也考虑某些情况是因为错误导致的
-              // 如果连续多次获取到空数据，有可能是因为服务异常
-              if (!announcements || announcements.length === 0) {
-                if (page > binanceEndPage - 3) {
+              if (!rawAnnouncements || rawAnnouncements.length === 0) {
+                if (page > 1) {
                   // 只对较新的页面执行此检查
                   retryCount++;
                   if (retryCount < maxRetries) {
@@ -276,9 +341,53 @@ class MonitorService {
                 continue;
               }
 
+              // 筛选出真正需要AI分析的新公告
+              const newRawAnnouncements = [];
+              for (const rawAnnouncement of rawAnnouncements) {
+                const key = `${rawAnnouncement.url}|${rawAnnouncement.title}`;
+                if (!storedCombinations.has(key)) {
+                  newRawAnnouncements.push(rawAnnouncement);
+                }
+              }
+
+              console.log(
+                `第 ${page} 页发现 ${newRawAnnouncements.length} 条新公告需要AI分析`
+              );
+
+              // 对新公告进行AI分析
+              const processedAnnouncements = [];
+              for (const rawAnnouncement of newRawAnnouncements) {
+                try {
+                  const analyzed =
+                    await BinanceService.analyzeAnnouncementWithAI(
+                      rawAnnouncement
+                    );
+                  processedAnnouncements.push(...analyzed);
+
+                  // 避免AI API限制
+                  if (
+                    newRawAnnouncements.indexOf(rawAnnouncement) <
+                    newRawAnnouncements.length - 1
+                  ) {
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                  }
+                } catch (error) {
+                  console.error(
+                    `AI分析失败: ${rawAnnouncement.title}`,
+                    error.message
+                  );
+                  // 添加未分类的公告
+                  processedAnnouncements.push({
+                    ...rawAnnouncement,
+                    type: "未分类",
+                    tokenInfoArray: [],
+                  });
+                }
+              }
+
               binanceAnnouncements = [
                 ...binanceAnnouncements,
-                ...announcements,
+                ...processedAnnouncements,
               ];
               success = true;
 
@@ -324,17 +433,20 @@ class MonitorService {
                 }`
               );
 
-              const announcements = await OkxService.getAnnouncements(page);
+              // 使用新的分离逻辑：先获取原始数据
+              const rawAnnouncements = await OkxService.getRawAnnouncements(
+                page
+              );
 
               // 增加日志
               console.log(
-                `获取到 OKX 第 ${page} 页数据: ${
-                  announcements ? announcements.length : 0
+                `获取到 OKX 第 ${page} 页原始数据: ${
+                  rawAnnouncements ? rawAnnouncements.length : 0
                 } 条`
               );
 
               // 同样对空结果进行特殊处理
-              if (!announcements || announcements.length === 0) {
+              if (!rawAnnouncements || rawAnnouncements.length === 0) {
                 if (page > okxEndPage - 3) {
                   // 只对较新的页面执行此检查
                   retryCount++;
@@ -354,7 +466,53 @@ class MonitorService {
                 continue;
               }
 
-              okxAnnouncements = [...okxAnnouncements, ...announcements];
+              // 筛选出真正需要AI分析的新公告
+              const newRawAnnouncements = [];
+              for (const rawAnnouncement of rawAnnouncements) {
+                const key = `${rawAnnouncement.url}|${rawAnnouncement.title}`;
+                if (!storedCombinations.has(key)) {
+                  newRawAnnouncements.push(rawAnnouncement);
+                }
+              }
+
+              console.log(
+                `第 ${page} 页发现 ${newRawAnnouncements.length} 条新公告需要AI分析`
+              );
+
+              // 对新公告进行AI分析
+              const processedAnnouncements = [];
+              for (const rawAnnouncement of newRawAnnouncements) {
+                try {
+                  const analyzed = await OkxService.analyzeAnnouncementWithAI(
+                    rawAnnouncement
+                  );
+                  processedAnnouncements.push(...analyzed);
+
+                  // 避免AI API限制
+                  if (
+                    newRawAnnouncements.indexOf(rawAnnouncement) <
+                    newRawAnnouncements.length - 1
+                  ) {
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                  }
+                } catch (error) {
+                  console.error(
+                    `AI分析失败: ${rawAnnouncement.title}`,
+                    error.message
+                  );
+                  // 添加未分类的公告
+                  processedAnnouncements.push({
+                    ...rawAnnouncement,
+                    type: "未分类",
+                    tokenInfoArray: [],
+                  });
+                }
+              }
+
+              okxAnnouncements = [
+                ...okxAnnouncements,
+                ...processedAnnouncements,
+              ];
               success = true;
 
               // 避免请求过于频繁

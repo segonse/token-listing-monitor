@@ -5,6 +5,8 @@ const AnnouncementController = require("../controllers/announcementController");
 
 // Token相关路由
 router.get("/tokens", TokenController.getAllTokens);
+router.get("/tokens/search", TokenController.searchTokens); // 搜索代币
+router.get("/tokens/:id", TokenController.getTokenById); // 获取代币详情
 router.post("/tokens", TokenController.addToken);
 router.delete("/tokens/:id", TokenController.deleteToken);
 
