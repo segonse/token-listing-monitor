@@ -29,6 +29,7 @@ class BinanceService {
 2. 提取代币信息（增强版）：
    - 优先提取同时具有name和symbol的代币信息
    - 公告如果只有symbol，就单独提取symbol，公告没有name不要自行生成
+   - 类似"XXUSDT"一般是指代币symbol和USDT交易对，所以提取symbol部分应该是XX而不是XXUSDT
    - 代币名称 (name): 项目全名（如果有的话）
    - 代币符号 (symbol): 代币符号
 

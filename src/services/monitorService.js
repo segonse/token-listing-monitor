@@ -29,7 +29,7 @@ class MonitorService {
         // bybitAnnouncements,
         okxRawAnnouncements,
         binanceRawAnnouncements,
-        bitgetAnnouncements, // Bitget暂时保持原有逻辑
+        // bitgetAnnouncements, // Bitget暂时保持原有逻辑
         // kucoinAnnouncements,
         // htxAnnouncements,
         // gateAnnouncements,
@@ -38,7 +38,7 @@ class MonitorService {
         // BybitService.getAllAnnouncements(),
         OkxService.getRawAnnouncements(),
         BinanceService.getRawAnnouncements(),
-        BitgetService.getAllAnnouncements(), // Bitget暂时保持原有逻辑
+        // BitgetService.getAllAnnouncements(), // Bitget暂时保持原有逻辑
         // KucoinService.getAnnouncements(),
         // HtxService.getAnnouncements(),
         // GateService.getAnnouncements(),
@@ -50,7 +50,7 @@ class MonitorService {
         // ...bybitAnnouncements,
         ...okxRawAnnouncements,
         ...binanceRawAnnouncements,
-        ...bitgetAnnouncements, // Bitget暂时保持原有逻辑
+        // ...bitgetAnnouncements, // Bitget暂时保持原有逻辑
         // ...kucoinAnnouncements,
         // ...htxAnnouncements,
         // ...gateAnnouncements,
@@ -66,7 +66,7 @@ class MonitorService {
       // console.log(`- Bybit: ${bybitAnnouncements.length} 条`);
       console.log(`- OKX: ${okxRawAnnouncements.length} 条`);
       console.log(`- Binance: ${binanceRawAnnouncements.length} 条`);
-      console.log(`- Bitget: ${bitgetAnnouncements.length} 条`);
+      // console.log(`- Bitget: ${bitgetAnnouncements.length} 条`);
       // console.log(`- KuCoin: ${kucoinAnnouncements.length} 条`);
       // console.log(`- HTX: ${htxAnnouncements.length} 条`);
       // console.log(`- Gate.io: ${gateAnnouncements.length} 条`);
@@ -291,8 +291,8 @@ class MonitorService {
       // 获取币安历史数据
       if (exchangesToFetch.binance) {
         console.log("获取币安历史公告数据...");
-        const binanceStartPage = 12;
-        const binanceEndPage = 1;
+        const binanceStartPage = 13;
+        const binanceEndPage = 2;
 
         // 从高页码向低页码获取
         for (let page = binanceStartPage; page >= binanceEndPage; page--) {
